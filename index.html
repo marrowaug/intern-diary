@@ -1028,20 +1028,23 @@ function parseRows(rows) {
   const dailyMap = {};
   let weekLabel = '', workItems = [], nextWeekPlan = '', weekReflections = '';
   let currentDate = null;
+  let inWeekly = false;
 
   for (const row of rows) {
     const f = v => (v == null ? '' : v.toString().trim());
-    const col0 = f(row[0]); // 日期 / 周总结标识
-    const col1 = f(row[1]); // 板块
-    const col2 = f(row[2]); // 事项
+    const col0 = f(row[0]);
+    const col1 = f(row[1]);
+    const col2 = f(row[2]);
 
-    // ── 日期行（如「4.13 周一」）
-    if (col0 && col0.match(/^\d+\.\d+/)) {
-      // 判断是否是周总结行
+    // ── 日期 / 周总结 标识行
+    if (col0 && col0[0] && col0[0].match(/\d/)) {
       if (col0.includes('周总结')) {
+        inWeekly = true;
+        currentDate = null;
         const m = col0.match(/(\d+\.\d+[~～]\d+\.\d+)/);
         if (m) weekLabel = m[1];
       } else {
+        inWeekly = false;
         currentDate = col0;
         if (!dailyMap[currentDate]) {
           dailyMap[currentDate] = { date_label: currentDate, plan: '', summary: '', next_day_plan: '', reflections: [], output_links: [] };
@@ -1049,25 +1052,25 @@ function parseRows(rows) {
       }
     }
 
-    // ── 日报板块
-    if (currentDate && dailyMap[currentDate]) {
-      const log = dailyMap[currentDate];
-      if (col1 === '本日工作内容' && col2) log.summary = col2;
-      if (col1 === '本日收获' && col2) {
-        // 每条「数字. 」开头视为一条收获
-        const items = col2.split(/\n(?=\d+[\.．、])/).map(s => s.trim()).filter(Boolean);
-        log.reflections = items.length > 1 ? items : (col2 ? [col2] : []);
-      }
-      if (col1 === '次日计划' && col2) log.next_day_plan = col2;
-    }
-
-    // ── 周总结板块
-    if (col0.includes('周总结') || (!col0 && weekLabel)) {
+    // ── 周总结板块（优先判断）
+    if (inWeekly) {
       if (col1 === '本周工作' && col2) {
         workItems = col2.split('\n').map(s => s.replace(/^\d+[\.．、]\s*/, '').trim()).filter(Boolean);
       }
       if (col1 === '下周计划' && col2) nextWeekPlan = col2;
       if ((col1 === '本周思考要点' || col1 === '收获与思考') && col2) weekReflections = col2;
+      continue; // 不走日报分支
+    }
+
+    // ── 日报板块
+    if (currentDate && dailyMap[currentDate]) {
+      const log = dailyMap[currentDate];
+      if (col1 === '本日工作内容' && col2) log.summary = col2;
+      if (col1 === '本日收获' && col2) {
+        const items = col2.split(/\n(?=\d+[\.．、])/).map(s => s.trim()).filter(Boolean);
+        log.reflections = items.length > 1 ? items : (col2 ? [col2] : []);
+      }
+      if (col1 === '次日计划' && col2) log.next_day_plan = col2;
     }
   }
 
