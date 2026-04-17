@@ -1025,52 +1025,56 @@ async function handleDiaryFile(file) {
 }
 
 function parseRows(rows) {
-  let weekLabel = '', weeklyRow = null;
   const dailyMap = {};
+  let weekLabel = '', workItems = [], nextWeekPlan = '', weekReflections = '';
+  let currentDate = null;
 
   for (const row of rows) {
-    const f = v => (v||'').toString().trim();
-    const dateCell    = f(row[1]);
-    const sectionCell = f(row[2]);
-    const contentCell = f(row[3]);
-    const thoughtCell = f(row[4]);
-    const wensanCell  = f(row[5]);
+    const f = v => (v == null ? '' : v.toString().trim());
+    const col0 = f(row[0]); // 日期 / 周总结标识
+    const col1 = f(row[1]); // 板块
+    const col2 = f(row[2]); // 事项
 
-    if (dateCell && dateCell.match(/^\d+\.\d+\s*周/)) {
-      if (!dailyMap[dateCell]) dailyMap[dateCell] = { date_label:dateCell, plan:'', summary:'', next_day_plan:'', reflections:[] };
+    // ── 日期行（如「4.13 周一」）
+    if (col0 && col0.match(/^\d+\.\d+/)) {
+      // 判断是否是周总结行
+      if (col0.includes('周总结')) {
+        const m = col0.match(/(\d+\.\d+[~～]\d+\.\d+)/);
+        if (m) weekLabel = m[1];
+      } else {
+        currentDate = col0;
+        if (!dailyMap[currentDate]) {
+          dailyMap[currentDate] = { date_label: currentDate, plan: '', summary: '', next_day_plan: '', reflections: [], output_links: [] };
+        }
+      }
     }
-    const lastKey = Object.keys(dailyMap).pop();
-    if (sectionCell === '本日计划' && contentCell && lastKey) dailyMap[lastKey].plan = contentCell;
-    if (sectionCell === '本日总结' && lastKey) {
-      if (contentCell && !dailyMap[lastKey].summary) dailyMap[lastKey].summary = contentCell;
-      if (thoughtCell) dailyMap[lastKey].reflections.push(thoughtCell);
+
+    // ── 日报板块
+    if (currentDate && dailyMap[currentDate]) {
+      const log = dailyMap[currentDate];
+      if (col1 === '本日工作内容' && col2) log.summary = col2;
+      if (col1 === '本日收获' && col2) {
+        // 每条「数字. 」开头视为一条收获
+        const items = col2.split(/\n(?=\d+[\.．、])/).map(s => s.trim()).filter(Boolean);
+        log.reflections = items.length > 1 ? items : (col2 ? [col2] : []);
+      }
+      if (col1 === '次日计划' && col2) log.next_day_plan = col2;
     }
-    if (sectionCell === '次日计划' && contentCell && lastKey) dailyMap[lastKey].next_day_plan = contentCell;
-    if (wensanCell && wensanCell.includes('一周总结')) {
-      weeklyRow = wensanCell;
-      const m = wensanCell.match(/(\d+\.\d+[~～]\d+\.\d+)/);
-      if (m) weekLabel = m[1];
+
+    // ── 周总结板块
+    if (col0.includes('周总结') || (!col0 && weekLabel)) {
+      if (col1 === '本周工作' && col2) {
+        workItems = col2.split('\n').map(s => s.replace(/^\d+[\.．、]\s*/, '').trim()).filter(Boolean);
+      }
+      if (col1 === '下周计划' && col2) nextWeekPlan = col2;
+      if ((col1 === '本周思考要点' || col1 === '收获与思考') && col2) weekReflections = col2;
     }
   }
 
-  if (!weekLabel) weekLabel = (Object.keys(dailyMap)[0]||'').split(' ')[0] + '周';
+  if (!weekLabel) weekLabel = (Object.keys(dailyMap)[0] || '').split(' ')[0] + '周';
 
-  let workItems=[], nextWeekPlan='', reflections='';
-  if (weeklyRow) {
-    let inWork=false, inRefl=false, inNext=false;
-    for (const line of weeklyRow.split('\n')) {
-      const l = line.trim();
-      if (l.includes('本周工作'))                         { inWork=true;  inRefl=false; inNext=false; continue; }
-      if (l.includes('下周') && l.includes('计划'))       { inNext=true;  inWork=false; inRefl=false; continue; }
-      if (l.includes('收获与思考'))                       { inRefl=true;  inWork=false; inNext=false; continue; }
-      if (inWork && l.match(/^\d+[）\)]/)) workItems.push(l.replace(/^\d+[）\)]/,'').trim());
-      if (inNext && l) nextWeekPlan += (nextWeekPlan?'\n':'') + l;
-      if (inRefl && l) reflections  += (reflections ?'\n':'') + l;
-    }
-  }
-
-  const weekly = { week_label:weekLabel, work_items:workItems, next_week_plan:nextWeekPlan, reflections };
-  const dailyLogs = Object.values(dailyMap).map(d => ({...d, week_label:weekLabel}));
+  const weekly = { week_label: weekLabel, work_items: workItems, next_week_plan: nextWeekPlan, reflections: weekReflections };
+  const dailyLogs = Object.values(dailyMap).map(d => ({ ...d, week_label: weekLabel }));
   return { weekly, dailyLogs };
 }
 
