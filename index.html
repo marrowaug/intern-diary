@@ -809,7 +809,7 @@ nav { padding: 12px 10px; flex: 1; }
 <script>
 // ── Password Gate ──
 const PASS_KEY = 'diary_auth';
-const CORRECT  = 'feifei2025'; // 你的密码，可以改
+const CORRECT  = '2026'; // 你的密码，可以改
 
 function checkPassword() {
   const val = document.getElementById('gate-input').value;
@@ -1289,8 +1289,11 @@ function renderToday() {
     const el = document.getElementById(id);
     el.innerHTML = val ? val.replace(/\n/g,'<br>') : '<span class="empty-hint">暂无数据</span>';
   };
-  setText('today-plan',    todayLog?.plan);
-  setText('today-summary', todayLog?.summary);
+  setText('today-plan',    todayLog?.summary);
+  const refls = todayLog?.reflections || [];
+  document.getElementById('today-summary').innerHTML = refls.length
+    ? refls.map(r => `<div style="margin-bottom:8px;line-height:1.7">${r}</div>`).join('')
+    : '<span class="empty-hint">暂无数据</span>';
   setText('today-next',    todayLog?.next_day_plan);
   renderTodayLinks(todayLog?.output_links || []);
 }
