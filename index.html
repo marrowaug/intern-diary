@@ -7,518 +7,1045 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root {
-    --bg: #f5f4f0;
-    --card: #ffffff;
-    --accent: #4f46e5;
-    --accent-light: #eef2ff;
-    --text: #1e1b4b;
-    --muted: #6b7280;
-    --border: #e5e7eb;
-    --green: #059669;
-    --green-light: #ecfdf5;
-    --yellow: #d97706;
-    --yellow-light: #fffbeb;
-    --red: #dc2626;
-    --red-light: #fef2f2;
-    --radius: 12px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  }
+/* ── Password Gate ── */
+#password-gate {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+#password-gate.hidden { display: none; }
+.gate-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 40px 36px; width: 360px; max-width: 92vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12); text-align: center;
+}
+.gate-icon  { font-size: 40px; margin-bottom: 14px; }
+.gate-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.gate-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+.gate-input {
+  width: 100%; padding: 11px 14px; border-radius: 9px;
+  border: 1px solid var(--border); font-size: 15px;
+  font-family: inherit; text-align: center; letter-spacing: 3px;
+  outline: none; margin-bottom: 12px;
+  transition: border-color 0.15s;
+}
+.gate-input:focus { border-color: var(--accent); }
+.gate-btn {
+  width: 100%; padding: 11px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+}
+.gate-btn:hover { background: #4a40d4; }
+.gate-error { font-size: 13px; color: var(--red); margin-top: 10px; display: none; }
+</style>
+<style>
+:root {
+  --bg: #f7f6f3;
+  --card: #ffffff;
+  --accent: #5b50e8;
+  --accent-light: #eeedfb;
+  --text: #1a1832;
+  --muted: #888;
+  --border: #e8e8e8;
+  --green: #12b76a;
+  --green-bg: #ecfdf5;
+  --yellow: #f59e0b;
+  --yellow-bg: #fffbeb;
+  --red: #ef4444;
+  --radius: 14px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── Sidebar ── */
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0;
+  z-index: 50;
+}
+.sidebar-logo {
+  padding: 22px 20px 16px;
+  font-weight: 700; font-size: 15px; color: var(--accent);
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo small { color: var(--muted); font-weight: 400; font-size: 12px; display: block; margin-top: 2px; }
+nav { padding: 12px 10px; flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px; border-radius: 9px;
+  font-size: 14px; cursor: pointer;
+  color: var(--muted); transition: all 0.15s;
+  margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-bottom { padding: 12px 10px; border-top: 1px solid var(--border); }
+.btn-upload {
+  width: 100%; padding: 9px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 600; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background 0.15s;
+}
+.btn-upload:hover { background: #4a40d4; }
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
+/* ── Main ── */
+.main { margin-left: 220px; padding: 32px 36px; flex: 1; }
 
-  /* ── Header ── */
-  header {
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 60px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .logo { font-weight: 700; font-size: 16px; color: var(--accent); }
-  .logo span { color: var(--text); font-weight: 400; }
+/* ── Page sections ── */
+.page-section { display: none; }
+.page-section.active { display: block; }
 
-  .header-actions { display: flex; gap: 10px; align-items: center; }
+/* ── Section title ── */
+.section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.section-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
 
-  .week-selector {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 14px;
-    background: var(--bg);
-    color: var(--text);
-    cursor: pointer;
-  }
+/* ── Stats ── */
+.stats-row { display: flex; gap: 14px; margin-bottom: 28px; flex-wrap: wrap; }
+.stat-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 18px 22px; box-shadow: var(--shadow); flex: 1; min-width: 140px;
+}
+.stat-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--accent); }
+.stat-value small { font-size: 13px; color: var(--muted); margin-left: 4px; font-weight: 400; }
 
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
-  }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #4338ca; }
-  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-  .btn-outline:hover { background: var(--bg); }
+/* ── Today card ── */
+.today-header {
+  font-size: 13px; color: var(--muted); font-weight: 500;
+  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.today-header .date-badge {
+  background: var(--accent-light); color: var(--accent);
+  padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 600;
+}
+.today-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 28px; }
 
-  /* ── Upload Modal ── */
-  .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 28px;
-    width: 460px;
-    max-width: 95vw;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  }
-  .modal h2 { font-size: 18px; margin-bottom: 6px; }
-  .modal p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+/* ── New today layout ── */
+.today-grid-new {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 28px;
+  align-items: start;
+}
+.today-col { display: flex; flex-direction: column; gap: 14px; }
+.today-card-tall { align-self: stretch; }
 
-  .drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 40px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.15s;
-    background: var(--bg);
-  }
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--accent);
-    background: var(--accent-light);
-  }
-  .drop-zone .icon { font-size: 36px; margin-bottom: 12px; }
-  .drop-zone p { font-size: 14px; color: var(--muted); }
-  .drop-zone strong { color: var(--accent); }
-  #file-input { display: none; }
+/* 产出链接区 */
+.today-output-area { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.today-output-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.4px; margin-bottom: 8px; }
+.today-output-link-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg); margin-bottom: 6px;
+}
+.today-output-link-item a { font-size: 13px; color: var(--accent); text-decoration: none; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today-output-link-item a:hover { text-decoration: underline; }
+.today-output-link-icon { font-size: 16px; flex-shrink: 0; }
+.today-output-btn {
+  font-size: 12px; color: var(--accent); background: none;
+  border: 1px dashed var(--accent); border-radius: 7px;
+  padding: 5px 12px; cursor: pointer; margin-top: 4px; width: 100%;
+}
+.today-output-btn:hover { background: var(--accent-light); }
+.today-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 18px 20px; box-shadow: var(--shadow);
+}
+.today-card-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 5px;
+}
+.today-card-label.plan  { color: var(--yellow); }
+.today-card-label.done  { color: var(--green); }
+.today-card-label.next  { color: var(--accent); }
+.today-card-text { font-size: 13px; line-height: 1.75; color: var(--text); white-space: pre-wrap; }
+.empty-hint { color: var(--muted); font-size: 13px; font-style: italic; }
 
-  .upload-status {
-    margin-top: 16px;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    display: none;
-  }
-  .upload-status.success { background: var(--green-light); color: var(--green); }
-  .upload-status.error   { background: var(--red-light);   color: var(--red); }
-  .upload-status.loading { background: var(--accent-light); color: var(--accent); }
+/* ── Accordion ── */
+.accordion { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px; }
+.accordion-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; cursor: pointer; user-select: none;
+  font-size: 14px; font-weight: 600;
+}
+.accordion-header:hover { background: var(--bg); }
+.accordion-arrow { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
+.accordion-arrow.open { transform: rotate(90deg); }
+.accordion-body { display: none; padding: 0 20px 16px; border-top: 1px solid var(--border); }
+.accordion-body.open { display: block; }
 
-  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+/* ── Timeline ── */
+.timeline { display: flex; flex-direction: column; }
+.tl-item {
+  display: flex; gap: 14px; padding: 14px 0;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.tl-item:last-child { border-bottom: none; }
+.tl-left { flex-shrink: 0; width: 80px; }
+.tl-date { font-size: 12px; font-weight: 700; color: var(--accent); }
+.tl-week { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tl-body { flex: 1; }
+.tl-preview { font-size: 13px; color: var(--text); line-height: 1.5; }
+.tl-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+.tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--accent-light); color: var(--accent); }
+.tl-detail {
+  display: none; margin-top: 10px; padding: 12px 14px;
+  background: var(--bg); border-radius: 9px; font-size: 13px; line-height: 1.7;
+}
+.tl-detail.open { display: block; }
+.tl-arrow-r { flex-shrink: 0; color: var(--muted); font-size: 11px; padding-top: 3px; transition: transform 0.2s; }
+.tl-arrow-r.open { transform: rotate(90deg); }
+.detail-block { margin-bottom: 12px; }
+.detail-block:last-child { margin-bottom: 0; }
+.detail-lbl { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.4px; margin-bottom: 3px; }
+.detail-val { font-size: 13px; color: var(--text); white-space: pre-wrap; }
 
-  /* ── Main Layout ── */
-  main { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+/* ── Month / Week / Day tabs ── */
+.history-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.htab {
+  padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border); background: var(--card);
+  color: var(--muted); transition: all 0.15s;
+}
+.htab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-  .page-sub   { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+/* ── Month view ── */
+.month-grid { display: flex; flex-direction: column; gap: 10px; }
+.month-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 16px 20px; box-shadow: var(--shadow); cursor: pointer;
+}
+.month-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.month-label { font-size: 14px; font-weight: 700; }
+.month-meta { font-size: 12px; color: var(--muted); }
+.month-projects { display: flex; flex-wrap: wrap; gap: 6px; }
+.month-tag { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--accent-light); color: var(--accent); }
 
-  /* ── Stats Row ── */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 24px;
-  }
-  .stat-card {
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 18px 20px;
-    box-shadow: var(--shadow);
-  }
-  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-  .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
-  .stat-unit  { font-size: 13px; color: var(--muted); margin-left: 2px; }
+/* ── Projects ── */
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.project-card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden; cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.project-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.project-card-top { padding: 18px 20px 14px; }
+.project-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 20px; margin-bottom: 10px;
+}
+.project-status.active { background: var(--green-bg); color: var(--green); }
+.project-status.done   { background: var(--bg); color: var(--muted); }
+.project-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.project-role { font-size: 13px; color: var(--muted); }
+.project-card-bottom {
+  padding: 12px 20px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.project-weeks { font-size: 12px; color: var(--muted); }
+.project-files { font-size: 12px; color: var(--accent); }
 
-  /* ── Grid ── */
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
+/* ── Project detail modal ── */
+.pmodal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 300;
+  align-items: center; justify-content: center;
+}
+.pmodal-overlay.open { display: flex; }
+.pmodal {
+  background: var(--card); border-radius: var(--radius);
+  width: 720px; max-width: 95vw; max-height: 88vh;
+  overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.pmodal-header {
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between;
+}
+.pmodal-title { font-size: 20px; font-weight: 700; }
+.pmodal-close { font-size: 20px; color: var(--muted); cursor: pointer; line-height: 1; padding: 2px 6px; }
+.pmodal-body { padding: 20px 28px 28px; }
+.pmodal-section { margin-bottom: 22px; }
+.pmodal-section-title { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 10px; }
 
-  .card {
-    background: var(--card);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-  }
-  .card-header {
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .card-header h3 { font-size: 15px; font-weight: 600; }
-  .card-body { padding: 16px 20px; }
+/* modules list */
+.module-list { display: flex; flex-direction: column; gap: 8px; }
+.module-item { padding: 10px 14px; background: var(--bg); border-radius: 8px; font-size: 13px; }
 
-  /* ── Timeline ── */
-  .timeline { display: flex; flex-direction: column; gap: 0; }
-  .timeline-item {
-    display: flex;
-    gap: 14px;
-    cursor: pointer;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-    position: relative;
-  }
-  .timeline-item:last-child { border-bottom: none; }
-  .tl-date {
-    flex-shrink: 0;
-    width: 72px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--accent);
-    padding-top: 2px;
-  }
-  .tl-content { flex: 1; }
-  .tl-summary { font-size: 13px; color: var(--text); line-height: 1.5; }
-  .tl-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-  .tag {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 20px;
-    background: var(--accent-light);
-    color: var(--accent);
-  }
-  .tl-arrow {
-    flex-shrink: 0;
-    color: var(--muted);
-    font-size: 12px;
-    padding-top: 2px;
-    transition: transform 0.2s;
-  }
-  .tl-detail {
-    display: none;
-    margin-top: 10px;
-    padding: 12px;
-    background: var(--bg);
-    border-radius: 8px;
-    font-size: 13px;
-    line-height: 1.7;
-    color: var(--text);
-  }
-  .tl-detail.open { display: block; }
-  .tl-arrow.open { transform: rotate(90deg); }
+/* file previews */
+.file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.file-thumb {
+  border-radius: 9px; border: 1px solid var(--border);
+  overflow: hidden; cursor: pointer; transition: box-shadow 0.15s;
+}
+.file-thumb:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+.file-thumb img { width: 100%; height: 110px; object-fit: cover; display: block; }
+.file-thumb .pdf-thumb {
+  height: 110px; background: #fff5f5; display: flex;
+  align-items: center; justify-content: center; flex-direction: column; gap: 4px;
+}
+.file-thumb .pdf-thumb span { font-size: 28px; }
+.file-thumb .pdf-thumb small { font-size: 11px; color: var(--muted); }
+.file-label { padding: 6px 8px; font-size: 11px; color: var(--muted); background: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .detail-section { margin-bottom: 12px; }
-  .detail-section:last-child { margin-bottom: 0; }
-  .detail-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-  }
-  .detail-text { font-size: 13px; color: var(--text); white-space: pre-wrap; }
+/* project timeline */
+.proj-timeline { display: flex; flex-direction: column; gap: 0; }
+.proj-tl-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.proj-tl-item:last-child { border-bottom: none; }
+.proj-tl-week { font-size: 12px; font-weight: 700; color: var(--accent); width: 80px; flex-shrink: 0; padding-top: 2px; }
+.proj-tl-text { font-size: 13px; color: var(--text); line-height: 1.6; }
 
-  /* ── Plan vs Done ── */
-  .pvd-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
-  .pvd-item:last-child { border-bottom: none; }
-  .pvd-date { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
-  .pvd-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .pvd-col  { }
-  .pvd-col-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .pvd-col-label.plan   { color: var(--yellow); }
-  .pvd-col-label.done   { color: var(--green);  }
-  .pvd-col-text { font-size: 13px; color: var(--text); white-space: pre-wrap; line-height: 1.6; }
+/* upload modal for files */
+/* ── Upload tabs ── */
+.upload-tabs { display:flex; gap:0; margin-bottom:18px; border-bottom:1px solid var(--border); }
+.upload-tab {
+  padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer;
+  color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-1px;
+  transition:all 0.15s;
+}
+.upload-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.upload-tab:hover:not(.active) { color:var(--text); }
 
-  /* ── Reflections ── */
-  .reflection-list { display: flex; flex-direction: column; gap: 10px; }
-  .reflection-card {
-    padding: 12px 14px;
-    border-radius: 8px;
-    background: var(--accent-light);
-    border-left: 3px solid var(--accent);
-  }
-  .reflection-meta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-  .reflection-text { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+.upload-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 400;
+  align-items: center; justify-content: center;
+}
+.upload-modal-overlay.open { display: flex; }
+.upload-modal {
+  background: var(--card); border-radius: var(--radius);
+  padding: 28px; width: 460px; max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.upload-modal h2 { font-size: 18px; margin-bottom: 6px; }
+.upload-modal p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 36px 20px; text-align: center; cursor: pointer;
+  background: var(--bg); transition: all 0.15s;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.drop-zone .dz-icon { font-size: 34px; margin-bottom: 10px; }
+.drop-zone p { font-size: 13px; color: var(--muted); }
+.drop-zone strong { color: var(--accent); }
+#file-input, #asset-file-input { display: none; }
+.upload-status {
+  margin-top: 14px; padding: 11px 15px;
+  border-radius: 8px; font-size: 13px; display: none;
+}
+.upload-status.success { background: var(--green-bg); color: var(--green); }
+.upload-status.error   { background: #fef2f2; color: var(--red); }
+.upload-status.loading { background: var(--accent-light); color: var(--accent); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #4a40d4; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 7px; }
 
-  /* ── Projects ── */
-  .project-list { display: flex; flex-direction: column; gap: 8px; }
-  .project-item {
-    padding: 12px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .project-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    margin-top: 5px;
-    flex-shrink: 0;
-  }
-  .project-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-  .project-desc { font-size: 12px; color: var(--muted); }
+/* new project form */
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; display: block; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 9px 12px; border-radius: 8px;
+  border: 1px solid var(--border); font-size: 13px; font-family: inherit;
+  background: var(--bg); color: var(--text); outline: none;
+  transition: border-color 0.15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); background: #fff; }
+.form-textarea { resize: vertical; min-height: 80px; }
+.modules-input { display: flex; flex-direction: column; gap: 6px; }
+.module-row { display: flex; gap: 6px; }
+.module-row .form-input { flex: 1; }
+.btn-add-module { font-size: 12px; color: var(--accent); background: none; border: 1px dashed var(--accent); border-radius: 7px; padding: 5px 12px; cursor: pointer; margin-top: 4px; }
 
-  /* ── Empty State ── */
-  .empty {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--muted);
-  }
-  .empty .icon { font-size: 40px; margin-bottom: 12px; }
-  .empty p { font-size: 14px; }
+/* ── Card header ── */
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.card-header {
+  padding: 14px 18px 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;
+}
+.card-header h3 { font-size: 14px; font-weight: 600; flex: 1; }
+.card-header-action { font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 400; }
+.card-header-action:hover { text-decoration: underline; }
+.card-body { padding: 14px 18px; }
 
-  /* ── Responsive ── */
-  @media (max-width: 700px) {
-    .stats-row { grid-template-columns: 1fr 1fr; }
-    .grid-2    { grid-template-columns: 1fr; }
-    header { padding: 0 16px; }
-    main   { padding: 16px; }
-  }
+/* ── Overview bottom ── */
+.overview-bottom { display: grid; grid-template-columns: 1fr 340px; gap: 14px; margin-top: 0; }
+.ob-left  { }
+.ob-right { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Reflection mini ── */
+.reflection-list { display: flex; flex-direction: column; gap: 8px; }
+.reflection-card {
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--accent-light); border-left: 3px solid var(--accent);
+}
+.reflection-meta { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.reflection-text { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+
+/* ── Overview project list ── */
+.ov-proj-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.ov-proj-item:last-child { border-bottom: none; }
+.ov-proj-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.ov-proj-name { font-size: 13px; font-weight: 600; flex: 1; }
+.ov-proj-role { font-size: 12px; color: var(--muted); }
+
+.empty { text-align: center; padding: 30px 20px; color: var(--muted); }
+.empty .ei { font-size: 32px; margin-bottom: 8px; }
+.empty p { font-size: 13px; }
+
+@media (max-width: 900px) {
+  .overview-bottom { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 16px; }
+  .today-grid { grid-template-columns: 1fr; }
+  .today-grid-new { grid-template-columns: 1fr; }
+  .stats-row { flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>
+<div class="layout">
 
-<!-- Header -->
-<header>
-  <div class="logo">霏霏的实习档案 <span>· MUR</span></div>
-  <div class="header-actions">
-    <select class="week-selector" id="week-selector" onchange="loadWeek(this.value)">
-      <option value="">加载中…</option>
-    </select>
-    <button class="btn btn-primary" onclick="openUpload()">📤 上传日记</button>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    霏霏的实习档案
+    <small>MUR · 2025</small>
   </div>
-</header>
-
-<!-- Upload Modal -->
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <h2>上传实习日记</h2>
-    <p>上传 Excel 文件后，数据会自动解析并保存到云端，历史记录不会被覆盖。</p>
-
-    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-      <div class="icon">📂</div>
-      <p><strong>点击选择文件</strong>，或将 Excel 拖拽到此处</p>
-      <p style="margin-top:6px;font-size:12px;">支持 .xlsx / .xls</p>
+  <nav>
+    <div class="nav-item active" onclick="showPage('overview')">
+      <span class="nav-icon">🏠</span> 总览
     </div>
-    <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+    <div class="nav-item" onclick="showPage('history')">
+      <span class="nav-icon">📅</span> 历史记录
+    </div>
+    <div class="nav-item" onclick="showPage('projects')">
+      <span class="nav-icon">🗂</span> 历史项目
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="btn-upload" onclick="openUploadModal()">📤 上传日记</button>
+  </div>
+</aside>
 
-    <div class="upload-status" id="upload-status"></div>
+<!-- Main -->
+<main class="main">
 
+  <!-- ══ 总览 ══ -->
+  <section class="page-section active" id="page-overview">
+    <div class="section-title">总览</div>
+    <div class="section-sub" id="today-date-sub">加载中…</div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">记录天数</div>
+        <div class="stat-value" id="stat-days">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">进行中项目</div>
+        <div class="stat-value" id="stat-active">–<small>个</small></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已完成项目</div>
+        <div class="stat-value" id="stat-done">–<small>个</small></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">累计周次</div>
+        <div class="stat-value" id="stat-weeks">–<small>周</small></div>
+      </div>
+    </div>
+
+    <div class="today-header">
+      <span class="date-badge" id="today-badge">今天</span>
+      今日工作
+    </div>
+    <div class="today-grid-new">
+      <!-- 左列 -->
+      <div class="today-col">
+        <!-- 今日工作内容 -->
+        <div class="today-card">
+          <div class="today-card-label plan">📋 今日工作内容</div>
+          <div class="today-card-text" id="today-plan"><span class="empty-hint">暂无数据</span></div>
+          <div class="today-output-area" id="today-output-area">
+            <div class="today-output-label">📎 今日产出</div>
+            <div id="today-output-links"></div>
+            <button class="today-output-btn" onclick="openTodayLinkModal()">＋ 添加产出链接</button>
+          </div>
+        </div>
+        <!-- 次日计划 -->
+        <div class="today-card">
+          <div class="today-card-label next">🔜 次日计划</div>
+          <div class="today-card-text" id="today-next"><span class="empty-hint">暂无数据</span></div>
+        </div>
+      </div>
+      <!-- 右列：今日收获，跨两行 -->
+      <div class="today-card today-card-tall">
+        <div class="today-card-label done">💡 今日收获</div>
+        <div class="today-card-text" id="today-summary"><span class="empty-hint">暂无数据</span></div>
+      </div>
+    </div>
+
+    <!-- 下半区 -->
+    <div class="overview-bottom">
+      <!-- 左列：最近记录 + 周报预览 + 月报预览 -->
+      <div class="ob-left">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header">
+            <span>🗓</span><h3>最近记录</h3>
+            <span class="card-header-action" onclick="showPage('history', event)">查看全部 →</span>
+          </div>
+          <div class="card-body">
+            <div class="timeline" id="overview-timeline">
+              <div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header">
+            <span>📋</span><h3>本周周报</h3>
+            <span class="card-header-action" onclick="showPage('history', event)">查看全部 →</span>
+          </div>
+          <div class="card-body" id="overview-weekly">
+            <div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span>📅</span><h3>本月月报</h3>
+            <span class="card-header-action" onclick="showPage('history', event)">查看全部 →</span>
+          </div>
+          <div class="card-body" id="overview-monthly">
+            <div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右列：进行中项目 + 已完成项目 -->
+      <div class="ob-right">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header"><span>🟢</span><h3>进行中项目</h3>
+            <span class="card-header-action" onclick="showPage('projects', event)">查看全部 →</span>
+          </div>
+          <div class="card-body">
+            <div id="overview-projects-active">
+              <div class="empty"><div class="ei">📭</div><p>暂无项目</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>✅</span><h3>已完成项目</h3>
+            <span class="card-header-action" onclick="showPage('projects', event)">查看全部 →</span>
+          </div>
+          <div class="card-body">
+            <div id="overview-projects-done">
+              <div class="empty"><div class="ei">📭</div><p>暂无项目</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-header"><span>💡</span><h3>上周收获</h3></div>
+          <div class="card-body" id="overview-last-week-refl">
+            <div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 历史记录 ══ -->
+  <section class="page-section" id="page-history">
+    <div class="section-title">历史记录</div>
+    <div class="section-sub">按时间维度浏览过往日志</div>
+
+    <div class="history-tabs">
+      <div class="htab active" onclick="switchHistoryTab('month', this)">月报</div>
+      <div class="htab" onclick="switchHistoryTab('week', this)">周报</div>
+      <div class="htab" onclick="switchHistoryTab('day', this)">日报</div>
+    </div>
+
+    <div id="history-month">
+      <div class="month-grid" id="month-grid">
+        <div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>
+      </div>
+    </div>
+    <div id="history-week" style="display:none">
+      <div class="timeline" id="week-timeline">
+        <div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>
+      </div>
+    </div>
+    <div id="history-day" style="display:none">
+      <div class="timeline" id="day-timeline">
+        <div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 历史项目 ══ -->
+  <section class="page-section" id="page-projects">
+    <div class="section-title">历史项目</div>
+    <div class="section-sub">点击项目卡片查看详情、产出成果和时间线</div>
+
+    <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+      <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">＋ 新建项目</button>
+    </div>
+    <div class="project-grid" id="project-grid">
+      <div class="empty" style="grid-column:1/-1"><div class="ei">📭</div><p>点击「新建项目」添加你负责的项目</p></div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- ══ 今日产出链接 Modal ══ -->
+<div class="upload-modal-overlay" id="today-link-modal">
+  <div class="upload-modal">
+    <h2>添加今日产出链接</h2>
+    <p>粘贴企业微信文档或其他在线文档链接，仅保存在本地浏览器，刷新后需重新添加。</p>
+    <div class="form-group">
+      <label class="form-label">文档名称</label>
+      <input class="form-input" id="tl-name" placeholder="如：未成年2.0访谈提纲初稿">
+    </div>
+    <div class="form-group">
+      <label class="form-label">文档链接</label>
+      <input class="form-input" id="tl-url" placeholder="粘贴企业微信文档链接">
+    </div>
+    <div class="form-group">
+      <label class="form-label">类型</label>
+      <select class="form-select" id="tl-type">
+        <option value="doc">📄 文档 / 报告</option>
+        <option value="sheet">📊 表格</option>
+        <option value="slide">📑 PPT / 幻灯片</option>
+        <option value="other">🔗 其他</option>
+      </select>
+    </div>
+    <div class="upload-status" id="tl-status"></div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeUpload()">关闭</button>
+      <button class="btn btn-outline" onclick="closeTodayLinkModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveTodayLink()">添加</button>
     </div>
   </div>
 </div>
 
-<!-- Main -->
-<main>
-  <div class="page-title" id="page-title">本周工作档案</div>
-  <div class="page-sub"  id="page-sub">从右上角上传 Excel 日记，或选择历史周次查看</div>
+<!-- ══ 上传日记 Modal ══ -->
+<div class="upload-modal-overlay" id="upload-modal">
+  <div class="upload-modal" style="width:500px">
+    <h2>上传实习日记</h2>
+    <!-- Tab 切换 -->
+    <div class="upload-tabs">
+      <div class="upload-tab active" id="tab-excel" onclick="switchUploadTab('excel')">📂 上传 Excel</div>
+      <div class="upload-tab" id="tab-text" onclick="switchUploadTab('text')">📋 粘贴文本</div>
+    </div>
 
-  <!-- Stats -->
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-label">记录天数</div>
-      <div class="stat-value" id="stat-days">–</div>
+    <!-- Excel 面板 -->
+    <div id="panel-excel">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">上传完整 Excel 文件，系统自动识别新增日期，历史数据不会被覆盖。</p>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="dz-icon">📂</div>
+        <p><strong>点击选择文件</strong>，或将 Excel 拖入此处</p>
+        <p style="margin-top:4px;font-size:12px;">支持 .xlsx / .xls</p>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleDiaryFile(this.files[0])">
     </div>
-    <div class="stat-card">
-      <div class="stat-label">参与项目数</div>
-      <div class="stat-value" id="stat-projects">–</div>
+
+    <!-- 文本粘贴面板 -->
+    <div id="panel-text" style="display:none">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">将当天「文案」列的内容直接粘贴进来，系统自动识别日期和各板块。</p>
+      <textarea id="paste-input" class="form-textarea" style="min-height:180px;font-size:13px" placeholder="粘贴今日文案内容，例如：
+4.18 霏霏的工作总结
+——————————
+1. 本日工作内容
+...
+2. 明日计划：...
+3. 收获与思考
+..."></textarea>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">收获与思考</div>
-      <div class="stat-value" id="stat-reflections">–</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">累计周次</div>
-      <div class="stat-value" id="stat-weeks">–</div>
+
+    <div class="upload-status" id="upload-status"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeUploadModal()">关闭</button>
+      <button class="btn btn-primary" id="upload-submit-btn" onclick="handleUploadSubmit()">上传</button>
     </div>
   </div>
+</div>
 
-  <!-- Row 1: Timeline + Plan vs Done -->
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">
-        <span>🗓</span><h3>每日日志时间轴</h3>
+<!-- ══ 项目详情 Modal ══ -->
+<div class="pmodal-overlay" id="proj-modal">
+  <div class="pmodal">
+    <div class="pmodal-header">
+      <div>
+        <div class="pmodal-title" id="pm-name">项目名称</div>
+        <div style="margin-top:4px;" id="pm-role-badge"></div>
       </div>
-      <div class="card-body">
-        <div class="timeline" id="timeline">
-          <div class="empty"><div class="icon">📭</div><p>暂无数据，上传日记后显示</p></div>
-        </div>
-      </div>
+      <span class="pmodal-close" onclick="closeProjModal()">✕</span>
     </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span>✅</span><h3>计划 vs 完成</h3>
+    <div class="pmodal-body">
+      <!-- 负责板块 -->
+      <div class="pmodal-section">
+        <div class="pmodal-section-title">负责板块</div>
+        <div class="module-list" id="pm-modules"></div>
       </div>
-      <div class="card-body">
-        <div id="pvd-list">
-          <div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>
+      <!-- 产出成果 -->
+      <div class="pmodal-section">
+        <div class="pmodal-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+          产出成果
+          <button class="btn btn-outline btn-sm" onclick="openAssetUpload()">＋ 添加链接</button>
+        </div>
+        <div class="file-grid" id="pm-files">
+          <div class="empty"><div class="ei" style="font-size:24px">📎</div><p>暂无文件</p></div>
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Row 2: Reflections + Projects -->
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">
-        <span>💡</span><h3>收获与思考</h3>
-      </div>
-      <div class="card-body">
-        <div class="reflection-list" id="reflection-list">
-          <div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span>🗂</span><h3>本周项目总览</h3>
-      </div>
-      <div class="card-body">
-        <div class="project-list" id="project-list">
-          <div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>
-        </div>
+      <!-- 时间线 -->
+      <div class="pmodal-section">
+        <div class="pmodal-section-title">项目时间线</div>
+        <div class="proj-timeline" id="pm-timeline"></div>
       </div>
     </div>
   </div>
-</main>
+</div>
+
+<!-- ══ 添加成果链接 Modal ══ -->
+<div class="upload-modal-overlay" id="asset-upload-modal">
+  <div class="upload-modal">
+    <h2>添加成果链接</h2>
+    <p>粘贴企业微信文档或其他在线文档链接，别人点开后需要有对应权限才能访问，不会额外泄露。</p>
+    <div class="form-group">
+      <label class="form-label">文档名称</label>
+      <input class="form-input" id="link-name-input" placeholder="如：未成年2.0课题访谈报告">
+    </div>
+    <div class="form-group">
+      <label class="form-label">文档链接</label>
+      <input class="form-input" id="link-url-input" placeholder="粘贴企业微信文档 / 腾讯文档链接">
+    </div>
+    <div class="form-group">
+      <label class="form-label">类型</label>
+      <select class="form-select" id="link-type-input">
+        <option value="doc">📄 文档 / 报告</option>
+        <option value="sheet">📊 表格</option>
+        <option value="slide">📑 PPT / 幻灯片</option>
+        <option value="other">🔗 其他</option>
+      </select>
+    </div>
+    <div class="upload-status" id="asset-upload-status"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAssetUpload()">取消</button>
+      <button class="btn btn-primary" onclick="saveLinkAsset()">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 密码锁屏 ══ -->
+<div id="password-gate">
+  <div class="gate-card">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">霏霏的实习档案</div>
+    <div class="gate-sub">请输入访问密码</div>
+    <input class="gate-input" type="password" id="gate-input" placeholder="••••••" maxlength="20"
+      onkeydown="if(event.key==='Enter')checkPassword()">
+    <button class="gate-btn" onclick="checkPassword()">进入</button>
+    <div class="gate-error" id="gate-error">密码错误，请重试</div>
+  </div>
+</div>
+
+<!-- ══ 新建项目 Modal ══ -->
+<div class="upload-modal-overlay" id="new-proj-modal">
+  <div class="upload-modal" style="width:520px;">
+    <h2>新建项目</h2>
+    <p>填写项目基本信息，负责板块可添加多个。</p>
+    <div class="form-group">
+      <label class="form-label">项目名称</label>
+      <input class="form-input" id="np-name" placeholder="如：未成年2.0课题">
+    </div>
+    <div class="form-group">
+      <label class="form-label">我的角色 / 参与方式</label>
+      <input class="form-input" id="np-role" placeholder="如：访谈提纲撰写 + 报告分析">
+    </div>
+    <div class="form-group">
+      <label class="form-label">状态</label>
+      <select class="form-select" id="np-status">
+        <option value="active">进行中</option>
+        <option value="done">已完成</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">负责板块（可多个）</label>
+      <div class="modules-input" id="np-modules">
+        <div class="module-row">
+          <input class="form-input" placeholder="如：访谈提纲设计">
+          <button class="btn btn-outline btn-sm" onclick="removeModuleRow(this)">✕</button>
+        </div>
+      </div>
+      <button class="btn-add-module" onclick="addModuleRow()">＋ 添加板块</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">关联周次（选填，用逗号分隔）</label>
+      <input class="form-input" id="np-weeks" placeholder="如：4.13~4.17, 4.20~4.24">
+    </div>
+    <div class="upload-status" id="np-status-msg"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeNewProjectModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveNewProject()">保存项目</button>
+    </div>
+  </div>
+</div>
 
 <script>
-// ── Supabase Init ──
+// ── Password Gate ──
+const PASS_KEY = 'diary_auth';
+const CORRECT  = 'feifei2025'; // 你的密码，可以改
+
+function checkPassword() {
+  const val = document.getElementById('gate-input').value;
+  if (val === CORRECT) {
+    sessionStorage.setItem(PASS_KEY, '1');
+    document.getElementById('password-gate').classList.add('hidden');
+    document.getElementById('gate-error').style.display = 'none';
+  } else {
+    document.getElementById('gate-error').style.display = 'block';
+    document.getElementById('gate-input').value = '';
+    document.getElementById('gate-input').focus();
+  }
+}
+
+// Check on load
+if (sessionStorage.getItem(PASS_KEY) === '1') {
+  document.getElementById('password-gate').classList.add('hidden');
+}
+
+// ── Supabase ──
 const SUPABASE_URL = 'https://lnaxhswkymoqieayflsx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_dvOoG1znljkwO6MZwL-GZw_OqUMpKTm';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── Modal ──
-function openUpload()  { document.getElementById('modal').classList.add('open'); }
-function closeUpload() {
-  document.getElementById('modal').classList.remove('open');
-  setStatus('', '');
+// ── State ──
+let allLogs = [];
+let allWeeklies = [];
+let allProjects = [];
+let currentProjId = null;
+
+// ── Nav ──
+function showPage(id, ev) {
+  const e = ev || event;
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  // highlight sidebar item
+  const navItem = document.querySelector(`.nav-item[onclick*="'${id}'"]`);
+  if (navItem) navItem.classList.add('active');
+  else if (e && e.currentTarget && e.currentTarget.classList.contains('nav-item')) {
+    e.currentTarget.classList.add('active');
+  }
 }
 
-// ── Drag & Drop ──
+// ── Today date ──
+function renderTodayDate() {
+  const now = new Date();
+  const days = ['日','一','二','三','四','五','六'];
+  const str = `${now.getFullYear()} 年 ${now.getMonth()+1} 月 ${now.getDate()} 日，星期${days[now.getDay()]}`;
+  document.getElementById('today-date-sub').textContent = '今天是 ' + str;
+  document.getElementById('today-badge').textContent = `${now.getMonth()+1}月${now.getDate()}日`;
+}
+
+// ── Upload Modal ──
+function openUploadModal() {
+  document.getElementById('upload-modal').classList.add('open');
+  switchUploadTab('excel');
+  setStatus('upload-status','','');
+}
+function closeUploadModal() {
+  document.getElementById('upload-modal').classList.remove('open');
+  setStatus('upload-status','','');
+  document.getElementById('paste-input').value = '';
+}
+function switchUploadTab(tab) {
+  document.getElementById('panel-excel').style.display = tab==='excel' ? '' : 'none';
+  document.getElementById('panel-text').style.display  = tab==='text'  ? '' : 'none';
+  document.getElementById('tab-excel').classList.toggle('active', tab==='excel');
+  document.getElementById('tab-text').classList.toggle('active',  tab==='text');
+  setStatus('upload-status','','');
+}
+function handleUploadSubmit() {
+  const isText = document.getElementById('panel-text').style.display !== 'none';
+  if (isText) handlePasteText();
+  else document.getElementById('file-input').click();
+}
+
 const dropZone = document.getElementById('drop-zone');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) handleFile(file);
-});
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) handleDiaryFile(e.dataTransfer.files[0]); });
 
-function setStatus(type, msg) {
-  const el = document.getElementById('upload-status');
-  el.className = 'upload-status' + (type ? ' ' + type : '');
+function setStatus(elId, type, msg) {
+  const el = document.getElementById(elId);
+  el.className = 'upload-status' + (type ? ' '+type : '');
   el.style.display = type ? 'block' : 'none';
   el.textContent = msg;
 }
 
-// ── Parse Excel ──
-function handleFile(file) {
-  if (!file) return;
-  setStatus('loading', '⏳ 正在解析 Excel…');
+// ── Parse & Upload Diary ──
+// ── 粘贴文本上传 ──
+async function handlePasteText() {
+  const text = document.getElementById('paste-input').value.trim();
+  if (!text) { setStatus('upload-status','error','❌ 请粘贴文本内容'); return; }
+  setStatus('upload-status','loading','⏳ 正在解析文本…');
+  try {
+    const parsed = parseTextEntry(text);
+    if (!parsed) { setStatus('upload-status','error','❌ 未能识别日期，请确认格式包含如「4.18」的日期'); return; }
+    setStatus('upload-status','loading','⏫ 正在上传到云端…');
+    const { added, skipped } = await saveToSupabase(parsed);
+    setStatus('upload-status','success', `✅ 上传成功！新增 ${added} 天记录${skipped>0?`，已跳过 ${skipped} 天（历史保留）`:''}`);
+    document.getElementById('paste-input').value = '';
+    await loadAll();
+  } catch(err) {
+    console.error(err);
+    setStatus('upload-status','error','❌ 出错了：' + err.message);
+  }
+}
 
+function parseTextEntry(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // ── 判断是否是周报（含「一周总结」或「本周工作」）
+  const isWeekly = /一周总结|本周工作/.test(text);
+  // ── 判断是否是日报（含日期如「4.18」）
+  const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})/);
+
+  // ── 提取周次范围（如 4.13~4.17）
+  const weekRangeMatch = text.match(/(\d+\.\d+[~～]\d+\.\d+)/);
+  let weekLabel = weekRangeMatch ? weekRangeMatch[1]
+    : (allWeeklies[0]?.week_label || (dateMatch ? `${dateMatch[1]}.${dateMatch[2]}周` : ''));
+
+  // ════ 周报解析 ════
+  if (isWeekly) {
+    let workItems = [], nextWeekPlan = '', reflections = '';
+    let section = '';
+    const workLines = [], nextLines = [], reflLines = [];
+
+    for (const line of lines) {
+      if (/本周工作/.test(line))                        { section = 'work'; continue; }
+      if (/下周.*计划|次周.*计划/.test(line))           { section = 'next'; continue; }
+      if (/收获|思考/.test(line))                       { section = 'refl'; continue; }
+      if (section === 'work' && line.match(/^\d+[）)]/)) workLines.push(line.replace(/^\d+[）)]/, '').trim());
+      if (section === 'next') nextLines.push(line);
+      if (section === 'refl') reflLines.push(line);
+    }
+
+    workItems    = workLines.filter(Boolean);
+    nextWeekPlan = nextLines.join('\n').trim();
+    reflections  = reflLines.join('\n').trim();
+
+    const weekly = { week_label: weekLabel, work_items: workItems, next_week_plan: nextWeekPlan, reflections };
+
+    // 同时把周内已有日报关联起来（日期在周次里的）
+    const dailyLogs = [];
+    return { weekly, dailyLogs, skipWeeklyIfExists: false };
+  }
+
+  // ════ 日报解析 ════
+  if (!dateMatch) return null;
+  const dateLabel = `${dateMatch[1]}.${dateMatch[2]}`;
+
+  // 如果没找到周次范围，从已有数据里找匹配的周
+  if (!weekRangeMatch) {
+    const matched = allWeeklies.find(w => {
+      const m = w.week_label.match(/(\d+\.\d+)[~～](\d+\.\d+)/);
+      if (!m) return false;
+      const toNum = s => { const [a,b] = s.split('.').map(Number); return a*100+b; };
+      const d = toNum(dateLabel), s = toNum(m[1]), e = toNum(m[2]);
+      return d >= s && d <= e;
+    });
+    if (matched) weekLabel = matched.week_label;
+  }
+
+  let summary = '', nextDayPlan = '', reflections = [];
+  let section = '';
+  const workLines = [], reflLines = [], nextLines = [];
+
+  for (const line of lines) {
+    if (/^1[.．、].*工作|本日工作/.test(line)) { section = 'work'; continue; }
+    if (/^2[.．、]|明日计划|次日计划/.test(line)) { section = 'next'; continue; }
+    if (/^3[.．、]|收获|思考/.test(line))        { section = 'refl'; continue; }
+    if (section === 'work') workLines.push(line);
+    if (section === 'next') nextLines.push(line);
+    if (section === 'refl') reflLines.push(line);
+  }
+
+  summary     = workLines.join('\n').trim();
+  nextDayPlan = nextLines.join('\n').replace(/^(明日计划|次日计划)[：:]/,'').trim();
+
+  const reflFull  = reflLines.join('\n');
+  const reflItems = reflFull.split(/\n(?=\d+[）)])/).map(s => s.trim()).filter(Boolean);
+  reflections = reflItems.length ? reflItems : (reflFull ? [reflFull] : []);
+
+  const daily  = { date_label: dateLabel, week_label: weekLabel, plan: '', summary, next_day_plan: nextDayPlan, reflections, output_links: [] };
+  const weekly = { week_label: weekLabel, work_items: [], next_week_plan: '', reflections: '' };
+  const existWeekly = allWeeklies.find(w => w.week_label === weekLabel);
+  return { weekly: existWeekly || weekly, dailyLogs: [daily], skipWeeklyIfExists: !!existWeekly };
+}
+
+async function handleDiaryFile(file) {
+  if (!file) return;
+  setStatus('upload-status','loading','⏳ 正在解析 Excel…');
   const reader = new FileReader();
   reader.onload = async e => {
     try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const wb = XLSX.read(e.target.result, { type:'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null });
       const parsed = parseRows(rows);
-      if (!parsed) { setStatus('error', '❌ 未能识别日记格式，请检查 Excel 结构'); return; }
-      setStatus('loading', '⏫ 正在上传到云端…');
-      await saveToSupabase(parsed);
-      setStatus('success', '✅ 上传成功！数据已保存到云端');
-      await loadAllWeeks();
-      loadWeek(parsed.weekly.week_label);
+      if (!parsed) { setStatus('upload-status','error','❌ 未能识别日记格式，请检查 Excel 结构'); return; }
+      setStatus('upload-status','loading','⏫ 正在上传到云端…');
+      const { added, skipped } = await saveToSupabase(parsed);
+      setStatus('upload-status','success', `✅ 上传成功！新增 ${added} 天记录${skipped>0?`，已跳过 ${skipped} 天（历史保留）`:''}`);
+      await loadAll();
     } catch(err) {
       console.error(err);
-      setStatus('error', '❌ 出错了：' + err.message);
+      setStatus('upload-status','error','❌ 出错了：' + err.message);
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ── Parse Rows ──
 function parseRows(rows) {
-  // Find week label from 周总结 row
-  let weekLabel = '';
-  let weeklyRow = null;
+  let weekLabel = '', weeklyRow = null;
   const dailyMap = {};
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const f = v => (v || '').toString().trim();
-
-    // Detect date rows like "4.13 周一"
-    const dateCell = f(row[1]);
+  for (const row of rows) {
+    const f = v => (v||'').toString().trim();
+    const dateCell    = f(row[1]);
     const sectionCell = f(row[2]);
     const contentCell = f(row[3]);
     const thoughtCell = f(row[4]);
     const wensanCell  = f(row[5]);
 
     if (dateCell && dateCell.match(/^\d+\.\d+\s*周/)) {
-      if (!dailyMap[dateCell]) dailyMap[dateCell] = { date_label: dateCell, plan:'', summary:'', next_day_plan:'', reflections:[] };
+      if (!dailyMap[dateCell]) dailyMap[dateCell] = { date_label:dateCell, plan:'', summary:'', next_day_plan:'', reflections:[] };
     }
-
-    // Fill sections
-    if (sectionCell === '本日计划' && contentCell) {
-      const key = Object.keys(dailyMap).pop();
-      if (key) dailyMap[key].plan = contentCell;
+    const lastKey = Object.keys(dailyMap).pop();
+    if (sectionCell === '本日计划' && contentCell && lastKey) dailyMap[lastKey].plan = contentCell;
+    if (sectionCell === '本日总结' && lastKey) {
+      if (contentCell && !dailyMap[lastKey].summary) dailyMap[lastKey].summary = contentCell;
+      if (thoughtCell) dailyMap[lastKey].reflections.push(thoughtCell);
     }
-    if (sectionCell === '本日总结') {
-      const key = Object.keys(dailyMap).pop();
-      if (key) {
-        if (contentCell && !dailyMap[key].summary) dailyMap[key].summary = contentCell;
-        if (thoughtCell) dailyMap[key].reflections.push(thoughtCell);
-      } else if (contentCell) {
-        // multi-row summaries
-        const key2 = Object.keys(dailyMap).pop();
-        if (key2) dailyMap[key2].summary += '\n' + contentCell;
-      }
-    }
-    if (sectionCell === '次日计划' && contentCell) {
-      const key = Object.keys(dailyMap).pop();
-      if (key) dailyMap[key].next_day_plan = contentCell;
-    }
-
-    // Weekly summary — look for 文案 column containing 周总结
+    if (sectionCell === '次日计划' && contentCell && lastKey) dailyMap[lastKey].next_day_plan = contentCell;
     if (wensanCell && wensanCell.includes('一周总结')) {
       weeklyRow = wensanCell;
       const m = wensanCell.match(/(\d+\.\d+[~～]\d+\.\d+)/);
@@ -526,186 +1053,514 @@ function parseRows(rows) {
     }
   }
 
-  if (!weekLabel) weekLabel = Object.keys(dailyMap)[0]?.split(' ')[0] + '周';
+  if (!weekLabel) weekLabel = (Object.keys(dailyMap)[0]||'').split(' ')[0] + '周';
 
-  // Parse weekly summary
-  let workItems = [], nextWeekPlan = '', reflections = '';
+  let workItems=[], nextWeekPlan='', reflections='';
   if (weeklyRow) {
-    const wLines = weeklyRow.split('\n');
-    let inWork = false, inRefl = false, inNext = false;
-    for (const line of wLines) {
+    let inWork=false, inRefl=false, inNext=false;
+    for (const line of weeklyRow.split('\n')) {
       const l = line.trim();
-      if (l.includes('本周工作')) { inWork = true; inRefl = false; inNext = false; continue; }
-      if (l.includes('下周') && l.includes('计划')) { inNext = true; inWork = false; inRefl = false; continue; }
-      if (l.includes('收获与思考')) { inRefl = true; inWork = false; inNext = false; continue; }
-      if (inWork && l && l.match(/^\d+[）\)]/)) workItems.push(l.replace(/^\d+[）\)]/, '').trim());
-      if (inNext && l) nextWeekPlan += (nextWeekPlan ? '\n' : '') + l;
-      if (inRefl && l) reflections  += (reflections  ? '\n' : '') + l;
+      if (l.includes('本周工作'))                         { inWork=true;  inRefl=false; inNext=false; continue; }
+      if (l.includes('下周') && l.includes('计划'))       { inNext=true;  inWork=false; inRefl=false; continue; }
+      if (l.includes('收获与思考'))                       { inRefl=true;  inWork=false; inNext=false; continue; }
+      if (inWork && l.match(/^\d+[）\)]/)) workItems.push(l.replace(/^\d+[）\)]/,'').trim());
+      if (inNext && l) nextWeekPlan += (nextWeekPlan?'\n':'') + l;
+      if (inRefl && l) reflections  += (reflections ?'\n':'') + l;
     }
   }
 
-  const weekly = { week_label: weekLabel, work_items: workItems, next_week_plan: nextWeekPlan, reflections };
-  const dailyLogs = Object.values(dailyMap).map(d => ({ ...d, week_label: weekLabel }));
-
+  const weekly = { week_label:weekLabel, work_items:workItems, next_week_plan:nextWeekPlan, reflections };
+  const dailyLogs = Object.values(dailyMap).map(d => ({...d, week_label:weekLabel}));
   return { weekly, dailyLogs };
 }
 
-// ── Save to Supabase ──
-async function saveToSupabase({ weekly, dailyLogs }) {
-  // Upsert weekly (delete old same week first)
-  await db.from('weekly_summaries').delete().eq('week_label', weekly.week_label);
-  const { error: e1 } = await db.from('weekly_summaries').insert(weekly);
-  if (e1) throw new Error('保存周总结失败: ' + e1.message);
-
-  // Upsert daily logs
-  await db.from('daily_logs').delete().eq('week_label', weekly.week_label);
-  if (dailyLogs.length > 0) {
-    const { error: e2 } = await db.from('daily_logs').insert(dailyLogs);
-    if (e2) throw new Error('保存日志失败: ' + e2.message);
+async function saveToSupabase({ weekly, dailyLogs, skipWeeklyIfExists }) {
+  // 周总结：有就更新（除非文本上传且已存在），没有就新增
+  const { data: existWeek } = await db.from('weekly_summaries')
+    .select('id').eq('week_label', weekly.week_label).maybeSingle();
+  if (existWeek) {
+    if (!skipWeeklyIfExists) await db.from('weekly_summaries').update(weekly).eq('week_label', weekly.week_label);
+  } else {
+    const { error: e1 } = await db.from('weekly_summaries').insert(weekly);
+    if (e1) throw new Error('保存周总结失败: ' + e1.message);
   }
+  const { data: existLogs } = await db.from('daily_logs').select('date_label').eq('week_label', weekly.week_label);
+  const existDates = new Set((existLogs||[]).map(l => l.date_label));
+  const newLogs = dailyLogs.filter(l => !existDates.has(l.date_label));
+  if (newLogs.length > 0) {
+    const { error } = await db.from('daily_logs').insert(newLogs);
+    if (error) throw new Error('保存日志失败: ' + error.message);
+  }
+  return { added: newLogs.length, skipped: dailyLogs.length - newLogs.length };
 }
 
-// ── Load weeks list ──
-async function loadAllWeeks() {
-  const { data } = await db.from('weekly_summaries').select('week_label').order('created_at', { ascending: false });
-  const sel = document.getElementById('week-selector');
-  if (!data || data.length === 0) {
-    sel.innerHTML = '<option value="">暂无数据</option>';
-    document.getElementById('stat-weeks').textContent = '0';
+// ── Load All Data ──
+async function loadAll() {
+  const [{ data: logs }, { data: weeklies }, { data: projects }] = await Promise.all([
+    db.from('daily_logs').select('*').order('created_at'),
+    db.from('weekly_summaries').select('*').order('created_at', { ascending:false }),
+    db.from('projects').select('*').order('created_at', { ascending:false })
+  ]);
+  allLogs      = logs      || [];
+  allWeeklies  = weeklies  || [];
+  allProjects  = projects  || [];
+
+  renderStats();
+  renderToday();
+  renderOverviewTimeline();
+  renderOverviewWeekly();
+  renderOverviewMonthly();
+  renderOverviewProjects();
+  renderOverviewLastWeekRefl();
+  renderMonthView();
+  renderWeekTimeline();
+  renderDayTimeline();
+  renderProjectGrid();
+}
+
+// ── Today Output Links (cloud) ──
+const linkIcons = { doc:'📄', sheet:'📊', slide:'📑', other:'🔗' };
+let todayLogId = null; // 当天日志的 uuid
+
+function openTodayLinkModal() {
+  document.getElementById('today-link-modal').classList.add('open');
+  document.getElementById('tl-name').value = '';
+  document.getElementById('tl-url').value  = '';
+  document.getElementById('tl-type').value = 'doc';
+  setStatus('tl-status','','');
+}
+function closeTodayLinkModal() {
+  document.getElementById('today-link-modal').classList.remove('open');
+}
+
+async function saveTodayLink() {
+  const name = document.getElementById('tl-name').value.trim();
+  const url  = document.getElementById('tl-url').value.trim();
+  const type = document.getElementById('tl-type').value;
+  if (!name || !url) { setStatus('tl-status','error','❌ 请填写名称和链接'); return; }
+  setStatus('tl-status','loading','⏳ 保存中…');
+
+  // 找到今天的日志记录
+  const now = new Date();
+  const todayLabel = `${now.getMonth()+1}.${now.getDate()}`;
+  const todayLog = allLogs.find(l => l.date_label && l.date_label.startsWith(todayLabel));
+
+  if (!todayLog) {
+    setStatus('tl-status','error','❌ 今日暂无日志记录，请先上传今日日记');
     return;
   }
-  sel.innerHTML = data.map(d => `<option value="${d.week_label}">${d.week_label} 周</option>`).join('');
-  document.getElementById('stat-weeks').textContent = data.length;
+
+  const existing = todayLog.output_links || [];
+  const newLinks = [...existing, { name, url, type }];
+  const { error } = await db.from('daily_logs')
+    .update({ output_links: newLinks })
+    .eq('id', todayLog.id);
+
+  if (error) { setStatus('tl-status','error','❌ 保存失败：' + error.message); return; }
+
+  // 更新本地缓存
+  const idx = allLogs.findIndex(l => l.id === todayLog.id);
+  if (idx !== -1) allLogs[idx].output_links = newLinks;
+
+  renderTodayLinks(newLinks);
+  setStatus('tl-status','success','✅ 已保存');
+  setTimeout(closeTodayLinkModal, 600);
 }
 
-// ── Load a week ──
-async function loadWeek(weekLabel) {
-  if (!weekLabel) return;
-
-  const [{ data: weekly }, { data: logs }] = await Promise.all([
-    db.from('weekly_summaries').select('*').eq('week_label', weekLabel).single(),
-    db.from('daily_logs').select('*').eq('week_label', weekLabel).order('created_at')
-  ]);
-
-  document.getElementById('week-selector').value = weekLabel;
-  document.getElementById('page-title').textContent = weekLabel + ' 工作档案';
-  document.getElementById('page-sub').textContent = '共记录 ' + (logs?.length || 0) + ' 天';
-
-  document.getElementById('stat-days').textContent = logs?.length || 0;
-  document.getElementById('stat-reflections').textContent =
-    (logs || []).reduce((acc, d) => acc + (d.reflections?.length || 0), 0);
-
-  renderTimeline(logs || []);
-  renderPvD(logs || []);
-  renderReflections(logs || []);
-  renderProjects(weekly);
+function renderTodayLinks(links) {
+  const el = document.getElementById('today-output-links');
+  if (!links || !links.length) { el.innerHTML = ''; return; }
+  el.innerHTML = links.map(l => `
+    <div class="today-output-link-item">
+      <span class="today-output-link-icon">${linkIcons[l.type]||'🔗'}</span>
+      <a href="${l.url}" target="_blank">${l.name}</a>
+    </div>`).join('');
 }
 
-// ── Render Timeline ──
-function renderTimeline(logs) {
-  const el = document.getElementById('timeline');
-  if (!logs.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
-
-  el.innerHTML = logs.map((log, i) => `
-    <div class="timeline-item" onclick="toggleDetail(${i})">
-      <div class="tl-date">${log.date_label}</div>
-      <div class="tl-content">
-        <div class="tl-summary">${truncate(log.summary || log.plan || '–', 60)}</div>
-        ${log.reflections?.length ? `<div class="tl-tags">${log.reflections.slice(0,2).map(r => `<span class="tag">${truncate(r, 20)}</span>`).join('')}</div>` : ''}
-        <div class="tl-detail" id="detail-${i}">
-          ${log.plan ? `<div class="detail-section"><div class="detail-label">📋 本日计划</div><div class="detail-text">${log.plan}</div></div>` : ''}
-          ${log.summary ? `<div class="detail-section"><div class="detail-label">✅ 工作总结</div><div class="detail-text">${log.summary}</div></div>` : ''}
-          ${log.next_day_plan ? `<div class="detail-section"><div class="detail-label">🔜 次日计划</div><div class="detail-text">${log.next_day_plan}</div></div>` : ''}
-          ${log.reflections?.length ? `<div class="detail-section"><div class="detail-label">💡 收获与思考</div>${log.reflections.map(r => `<div class="detail-text" style="margin-bottom:6px">• ${r}</div>`).join('')}</div>` : ''}
+// ── Overview bottom panels ──
+function renderOverviewTimeline() {
+  const el = document.getElementById('overview-timeline');
+  const recent = [...allLogs].reverse().slice(0, 7);
+  if (!recent.length) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>'; return; }
+  el.innerHTML = recent.map((log, i) => `
+    <div class="tl-item" onclick="toggleTl('ov-${i}')">
+      <div class="tl-left">
+        <div class="tl-date">${log.date_label}</div>
+        <div class="tl-week">${log.week_label||''}</div>
+      </div>
+      <div class="tl-body">
+        <div class="tl-preview">${trunc(log.summary || log.plan || '–', 55)}</div>
+        ${log.reflections?.length ? `<div class="tl-tags">${log.reflections.slice(0,2).map(r=>`<span class="tag">${trunc(r,16)}</span>`).join('')}</div>` : ''}
+        <div class="tl-detail" id="ov-${i}">
+          ${log.plan    ? `<div class="detail-block"><div class="detail-lbl">📋 今日计划</div><div class="detail-val">${log.plan}</div></div>` : ''}
+          ${log.summary ? `<div class="detail-block"><div class="detail-lbl">✅ 今日总结</div><div class="detail-val">${log.summary}</div></div>` : ''}
+          ${log.next_day_plan ? `<div class="detail-block"><div class="detail-lbl">🔜 次日计划</div><div class="detail-val">${log.next_day_plan}</div></div>` : ''}
+          ${log.reflections?.length ? `<div class="detail-block"><div class="detail-lbl">💡 收获</div>${log.reflections.map(r=>`<div class="detail-val">• ${r}</div>`).join('')}</div>` : ''}
         </div>
       </div>
-      <div class="tl-arrow" id="arrow-${i}">▶</div>
-    </div>
-  `).join('');
+      <div class="tl-arrow-r" id="arr-ov-${i}">▶</div>
+    </div>`).join('');
 }
 
-function toggleDetail(i) {
-  const d = document.getElementById('detail-' + i);
-  const a = document.getElementById('arrow-' + i);
-  d.classList.toggle('open');
-  a.classList.toggle('open');
+function renderOverviewLastWeekRefl() {
+  const el = document.getElementById('overview-last-week-refl');
+  // 上周 = allWeeklies 第二条（第一条是本周）
+  const lastWeek = allWeeklies[1];
+  if (!lastWeek) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>暂无上周数据</p></div>'; return; }
+  const refl = lastWeek.reflections;
+  if (!refl) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>上周暂无收获记录</p></div>'; return; }
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${lastWeek.week_label} 周</div>
+    <div style="font-size:13px;line-height:1.75;white-space:pre-wrap;color:var(--text)">${trunc(refl, 300)}</div>
+  `;
 }
 
-// ── Render Plan vs Done ──
-function renderPvD(logs) {
-  const el = document.getElementById('pvd-list');
-  if (!logs.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
-
-  el.innerHTML = logs.map(log => `
-    <div class="pvd-item">
-      <div class="pvd-date">${log.date_label}</div>
-      <div class="pvd-row">
-        <div class="pvd-col">
-          <div class="pvd-col-label plan">📋 计划</div>
-          <div class="pvd-col-text">${log.plan || '–'}</div>
-        </div>
-        <div class="pvd-col">
-          <div class="pvd-col-label done">✅ 完成</div>
-          <div class="pvd-col-text">${log.summary || '–'}</div>
-        </div>
-      </div>
-    </div>
-  `).join('');
+function renderOverviewWeekly() {
+  const el = document.getElementById('overview-weekly');
+  const w = allWeeklies[0];
+  if (!w) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>'; return; }
+  const items = (w.work_items||[]);
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${w.week_label} 周</div>
+    ${items.length ? items.map(i=>`<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);line-height:1.5">• ${i}</div>`).join('') : '<div class="empty-hint">暂无工作项</div>'}
+    ${w.reflections ? `<div style="margin-top:10px;font-size:12px;color:var(--muted);font-weight:600">收获与思考</div><div style="font-size:13px;margin-top:6px;line-height:1.7;white-space:pre-wrap">${trunc(w.reflections, 200)}</div>` : ''}
+  `;
 }
 
-// ── Render Reflections ──
-function renderReflections(logs) {
-  const el = document.getElementById('reflection-list');
-  const all = [];
-  logs.forEach(log => {
-    (log.reflections || []).forEach(r => all.push({ date: log.date_label, text: r }));
+function renderOverviewMonthly() {
+  const el = document.getElementById('overview-monthly');
+  if (!allWeeklies.length) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>'; return; }
+  const now = new Date();
+  const curMonth = now.getMonth() + 1;
+  const monthWeeks = allWeeklies.filter(w => {
+    const m = w.week_label.match(/(\d+)\./);
+    return m && parseInt(m[1]) === curMonth;
   });
-  if (!all.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
-
-  el.innerHTML = all.map(r => `
-    <div class="reflection-card">
-      <div class="reflection-meta">${r.date}</div>
-      <div class="reflection-text">${r.text}</div>
-    </div>
-  `).join('');
+  if (!monthWeeks.length) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>本月暂无记录</p></div>'; return; }
+  const allItems = [...new Set(monthWeeks.flatMap(w => w.work_items||[]))];
+  const totalDays = allLogs.filter(l => {
+    const m = l.date_label?.match(/(\d+)\./);
+    return m && parseInt(m[1]) === curMonth;
+  }).length;
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${curMonth}月 · ${monthWeeks.length}周 · ${totalDays}天记录</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${allItems.map(i=>{
+      const mm = i.match(/【(.+?)】/); const name = mm ? mm[1] : trunc(i,15);
+      return `<span class="tag">${name}</span>`;
+    }).join('')}</div>
+  `;
 }
 
-// ── Render Projects ──
-function renderProjects(weekly) {
-  const el = document.getElementById('project-list');
-  const items = weekly?.work_items || [];
-  document.getElementById('stat-projects').textContent = items.length || '–';
+function renderOverviewProjects() {
+  const renderList = (elId, list, emptyMsg) => {
+    const el = document.getElementById(elId);
+    if (!list.length) { el.innerHTML = `<div class="empty"><div class="ei">📭</div><p>${emptyMsg}</p></div>`; return; }
+    el.innerHTML = list.map(p => `
+      <div class="ov-proj-item" onclick="openProjModal('${p.id}')" style="cursor:pointer">
+        <div class="ov-proj-dot" style="background:${p.status==='active'?'var(--green)':'var(--muted)'}"></div>
+        <div class="ov-proj-name">${p.name}</div>
+        <div class="ov-proj-role">${trunc(p.role||'',14)}</div>
+      </div>`).join('');
+  };
+  renderList('overview-projects-active', allProjects.filter(p=>p.status==='active'), '暂无进行中项目');
+  renderList('overview-projects-done',   allProjects.filter(p=>p.status==='done'),   '暂无已完成项目');
+}
 
-  if (!items.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
+// ── Stats ──
+function renderStats() {
+  document.getElementById('stat-days').textContent   = allLogs.length;
+  document.getElementById('stat-weeks').innerHTML    = `${allWeeklies.length}<small>周</small>`;
+  const active = allProjects.filter(p => p.status === 'active').length;
+  const done   = allProjects.filter(p => p.status === 'done').length;
+  document.getElementById('stat-active').innerHTML = `${active}<small>个</small>`;
+  document.getElementById('stat-done').innerHTML   = `${done}<small>个</small>`;
+}
 
-  el.innerHTML = items.map(item => {
-    // Try to parse 【项目名】描述 格式
-    const m = item.match(/【(.+?)】(.*)/) || item.match(/^(.+?)[：:](.*)/);
-    const name = m ? m[1] : item;
-    const desc = m ? m[2].trim() : '';
-    return `
-      <div class="project-item">
-        <div class="project-dot"></div>
-        <div>
-          <div class="project-name">${name}</div>
-          ${desc ? `<div class="project-desc">${desc}</div>` : ''}
-        </div>
+// ── Today ──
+function renderToday() {
+  const now = new Date();
+  const todayLabel = `${now.getMonth()+1}.${now.getDate()}`;
+  const todayLog = allLogs.find(l => l.date_label && l.date_label.startsWith(todayLabel));
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    el.innerHTML = val ? val.replace(/\n/g,'<br>') : '<span class="empty-hint">暂无数据</span>';
+  };
+  setText('today-plan',    todayLog?.plan);
+  setText('today-summary', todayLog?.summary);
+  setText('today-next',    todayLog?.next_day_plan);
+  renderTodayLinks(todayLog?.output_links || []);
+}
+
+// ── Month View ──
+function renderMonthView() {
+  const el = document.getElementById('month-grid');
+  if (!allWeeklies.length) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>'; return; }
+
+  // Group weeks by month
+  const monthMap = {};
+  allWeeklies.forEach(w => {
+    const m = w.week_label.match(/(\d+)\./);
+    const month = m ? m[1] + '月' : '未知';
+    if (!monthMap[month]) monthMap[month] = [];
+    monthMap[month].push(w);
+  });
+
+  el.innerHTML = Object.entries(monthMap).map(([month, weeks]) => {
+    const projects = [...new Set(weeks.flatMap(w => w.work_items||[]).map(i => {
+      const mm = i.match(/【(.+?)】/); return mm ? mm[1] : i.slice(0,10);
+    }))].slice(0,6);
+    return `<div class="month-card">
+      <div class="month-card-header">
+        <div class="month-label">${month}</div>
+        <div class="month-meta">${weeks.length} 周记录</div>
       </div>
-    `;
+      <div class="month-projects">
+        ${projects.map(p => `<span class="month-tag">${p}</span>`).join('') || '<span style="font-size:13px;color:var(--muted)">暂无项目数据</span>'}
+      </div>
+    </div>`;
   }).join('');
 }
 
-// ── Utils ──
-function truncate(str, n) {
-  return str.length > n ? str.slice(0, n) + '…' : str;
+// ── Week Timeline ──
+function renderWeekTimeline() {
+  const el = document.getElementById('week-timeline');
+  if (!allWeeklies.length) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>'; return; }
+
+  el.innerHTML = allWeeklies.map((w, i) => `
+    <div class="tl-item" onclick="toggleTl('wk-${i}')">
+      <div class="tl-left">
+        <div class="tl-date">${w.week_label}</div>
+        <div class="tl-week">周报</div>
+      </div>
+      <div class="tl-body">
+        <div class="tl-preview">${(w.work_items||[]).slice(0,2).map(it=>`• ${it}`).join(' ')|| '–'}</div>
+        <div class="tl-detail" id="wk-${i}">
+          ${w.work_items?.length ? `<div class="detail-block"><div class="detail-lbl">本周工作</div>${(w.work_items||[]).map(it=>`<div class="detail-val">• ${it}</div>`).join('')}</div>` : ''}
+          ${w.next_week_plan ? `<div class="detail-block"><div class="detail-lbl">下周计划</div><div class="detail-val">${w.next_week_plan}</div></div>` : ''}
+          ${w.reflections ? `<div class="detail-block"><div class="detail-lbl">收获与思考</div><div class="detail-val">${w.reflections}</div></div>` : ''}
+        </div>
+      </div>
+      <div class="tl-arrow-r" id="arr-wk-${i}">▶</div>
+    </div>
+  `).join('');
 }
 
+// ── Day Timeline ──
+function renderDayTimeline() {
+  const el = document.getElementById('day-timeline');
+  if (!allLogs.length) { el.innerHTML = '<div class="empty"><div class="ei">📭</div><p>上传日记后显示</p></div>'; return; }
+
+  const sorted = [...allLogs].reverse();
+  el.innerHTML = sorted.map((log, i) => `
+    <div class="tl-item" onclick="toggleTl('dl-${i}')">
+      <div class="tl-left">
+        <div class="tl-date">${log.date_label}</div>
+        <div class="tl-week">${log.week_label||''}</div>
+      </div>
+      <div class="tl-body">
+        <div class="tl-preview">${trunc(log.summary || log.plan || '–', 60)}</div>
+        ${log.reflections?.length ? `<div class="tl-tags">${log.reflections.slice(0,2).map(r=>`<span class="tag">${trunc(r,18)}</span>`).join('')}</div>` : ''}
+        <div class="tl-detail" id="dl-${i}">
+          ${log.plan    ? `<div class="detail-block"><div class="detail-lbl">📋 今日计划</div><div class="detail-val">${log.plan}</div></div>` : ''}
+          ${log.summary ? `<div class="detail-block"><div class="detail-lbl">✅ 今日总结</div><div class="detail-val">${log.summary}</div></div>` : ''}
+          ${log.next_day_plan ? `<div class="detail-block"><div class="detail-lbl">🔜 次日计划</div><div class="detail-val">${log.next_day_plan}</div></div>` : ''}
+          ${log.reflections?.length ? `<div class="detail-block"><div class="detail-lbl">💡 收获与思考</div>${log.reflections.map(r=>`<div class="detail-val">• ${r}</div>`).join('')}</div>` : ''}
+        </div>
+      </div>
+      <div class="tl-arrow-r" id="arr-dl-${i}">▶</div>
+    </div>
+  `).join('');
+}
+
+function toggleTl(id) {
+  const d = document.getElementById(id);
+  const a = document.getElementById('arr-' + id);
+  d.classList.toggle('open');
+  if(a) a.classList.toggle('open');
+}
+
+// ── History Tabs ──
+function switchHistoryTab(tab, el) {
+  document.querySelectorAll('.htab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('history-month').style.display = tab==='month' ? '' : 'none';
+  document.getElementById('history-week').style.display  = tab==='week'  ? '' : 'none';
+  document.getElementById('history-day').style.display   = tab==='day'   ? '' : 'none';
+}
+
+// ── Projects ──
+function renderProjectGrid() {
+  const el = document.getElementById('project-grid');
+  if (!allProjects.length) {
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="ei">📭</div><p>点击「新建项目」添加你负责的项目</p></div>';
+    return;
+  }
+  el.innerHTML = allProjects.map(p => {
+    const weeks = (p.weeks||[]).length;
+    const files = (p.files||[]).length;
+    const statusLabel = p.status === 'active' ? '进行中' : '已完成';
+    return `<div class="project-card" onclick="openProjModal('${p.id}')">
+      <div class="project-card-top">
+        <div class="project-status ${p.status}">
+          ${p.status==='active'?'🟢':'✅'} ${statusLabel}
+        </div>
+        <div class="project-name">${p.name}</div>
+        <div class="project-role">${p.role||''}</div>
+      </div>
+      <div class="project-card-bottom">
+        <div class="project-weeks">${weeks ? weeks+'个关联周次' : '暂无关联周次'}</div>
+        <div class="project-files">${files ? files+'份成果文件' : '暂无文件'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Project Modal ──
+function openProjModal(id) {
+  currentProjId = id;
+  const p = allProjects.find(x => x.id === id);
+  if (!p) return;
+
+  document.getElementById('pm-name').textContent = p.name;
+  document.getElementById('pm-role-badge').innerHTML =
+    `<span class="project-status ${p.status}" style="font-size:12px">${p.status==='active'?'🟢 进行中':'✅ 已完成'}</span>
+     ${p.role ? `<span style="font-size:13px;color:var(--muted);margin-left:8px">${p.role}</span>` : ''}`;
+
+  // 负责板块
+  const modules = p.modules || [];
+  document.getElementById('pm-modules').innerHTML = modules.length
+    ? modules.map(m => `<div class="module-item">• ${m}</div>`).join('')
+    : '<div class="empty-hint" style="font-size:13px">暂无</div>';
+
+  // 产出文件
+  renderProjectFiles(p.files || []);
+
+  // 项目时间线：从日志中找关联周次
+  const weeks = p.weeks || [];
+  const relLogs = allLogs.filter(l => weeks.includes(l.week_label));
+  const tl = document.getElementById('pm-timeline');
+  if (!relLogs.length) {
+    tl.innerHTML = '<div class="empty-hint" style="font-size:13px">暂无关联日志</div>';
+  } else {
+    tl.innerHTML = [...relLogs].reverse().map(l => `
+      <div class="proj-tl-item">
+        <div class="proj-tl-week">${l.date_label}</div>
+        <div class="proj-tl-text">${trunc(l.summary||l.plan||'–', 80)}</div>
+      </div>`).join('');
+  }
+
+  document.getElementById('proj-modal').classList.add('open');
+}
+
+function closeProjModal() {
+  document.getElementById('proj-modal').classList.remove('open');
+  currentProjId = null;
+}
+
+function renderProjectFiles(files) {
+  const el = document.getElementById('pm-files');
+  if (!files.length) {
+    el.innerHTML = '<div class="empty"><div class="ei" style="font-size:24px">📎</div><p>暂无成果链接</p></div>';
+    return;
+  }
+  const icons = { doc:'📄', sheet:'📊', slide:'📑', other:'🔗' };
+  el.innerHTML = '<div class="link-list">' + files.map(f => `
+    <div class="link-item">
+      <div class="link-item-left">
+        <span class="link-icon">${icons[f.type]||'🔗'}</span>
+        <div class="link-info">
+          <div class="link-name">${f.name}</div>
+          <div class="link-url">${f.url}</div>
+        </div>
+      </div>
+      <a class="link-open" href="${f.url}" target="_blank">打开 ↗</a>
+    </div>`).join('') + '</div>';
+}
+
+// ── Link Asset ──
+function openAssetUpload() {
+  document.getElementById('asset-upload-modal').classList.add('open');
+  document.getElementById('link-name-input').value = '';
+  document.getElementById('link-url-input').value  = '';
+  document.getElementById('link-type-input').value = 'doc';
+  setStatus('asset-upload-status','','');
+}
+function closeAssetUpload() {
+  document.getElementById('asset-upload-modal').classList.remove('open');
+}
+
+async function saveLinkAsset() {
+  const name = document.getElementById('link-name-input').value.trim();
+  const url  = document.getElementById('link-url-input').value.trim();
+  const type = document.getElementById('link-type-input').value;
+  if (!name || !url) { setStatus('asset-upload-status','error','❌ 请填写名称和链接'); return; }
+
+  setStatus('asset-upload-status','loading','⏳ 保存中…');
+  try {
+    const proj = allProjects.find(p => p.id === currentProjId);
+    const newFiles = [...(proj?.files||[]), { name, url, type }];
+    await db.from('projects').update({ files: newFiles }).eq('id', currentProjId);
+    const { data: updatedProj } = await db.from('projects').select('*').eq('id', currentProjId).single();
+    const idx = allProjects.findIndex(p => p.id === currentProjId);
+    if (idx !== -1) allProjects[idx] = updatedProj;
+    renderProjectFiles(updatedProj.files || []);
+    renderProjectGrid();
+    setStatus('asset-upload-status','success','✅ 链接已添加');
+    setTimeout(closeAssetUpload, 800);
+  } catch(err) {
+    setStatus('asset-upload-status','error','❌ 失败：' + err.message);
+  }
+}
+
+// ── New Project Modal ──
+function openNewProjectModal() { document.getElementById('new-proj-modal').classList.add('open'); }
+function closeNewProjectModal() {
+  document.getElementById('new-proj-modal').classList.remove('open');
+  setStatus('np-status-msg','','');
+}
+
+function addModuleRow() {
+  const container = document.getElementById('np-modules');
+  const row = document.createElement('div');
+  row.className = 'module-row';
+  row.innerHTML = `<input class="form-input" placeholder="负责板块"><button class="btn btn-outline btn-sm" onclick="removeModuleRow(this)">✕</button>`;
+  container.appendChild(row);
+}
+function removeModuleRow(btn) {
+  const rows = document.querySelectorAll('#np-modules .module-row');
+  if (rows.length > 1) btn.closest('.module-row').remove();
+}
+
+async function saveNewProject() {
+  const name = document.getElementById('np-name').value.trim();
+  if (!name) { setStatus('np-status-msg','error','❌ 请填写项目名称'); return; }
+
+  const modules = [...document.querySelectorAll('#np-modules .module-row input')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const weeks = document.getElementById('np-weeks').value
+    .split(',').map(s => s.trim()).filter(Boolean);
+
+  const proj = {
+    name,
+    role:    document.getElementById('np-role').value.trim(),
+    status:  document.getElementById('np-status').value,
+    modules, weeks, files: []
+  };
+
+  setStatus('np-status-msg','loading','⏳ 保存中…');
+  const { error } = await db.from('projects').insert(proj);
+  if (error) { setStatus('np-status-msg','error','❌ 保存失败：' + error.message); return; }
+  setStatus('np-status-msg','success','✅ 项目已保存');
+  await loadAll();
+  setTimeout(closeNewProjectModal, 800);
+}
+
+// ── Utils ──
+function trunc(s, n) { return s && s.length > n ? s.slice(0,n)+'…' : (s||''); }
+
 // ── Init ──
-(async () => {
-  await loadAllWeeks();
-  const sel = document.getElementById('week-selector');
-  if (sel.value) loadWeek(sel.value);
-})();
+renderTodayDate();
+loadAll();
 </script>
 </body>
 </html>
