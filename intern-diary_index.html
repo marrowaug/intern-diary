@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>霏霏的实习档案</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --card: #ffffff;
+    --accent: #4f46e5;
+    --accent-light: #eef2ff;
+    --text: #1e1b4b;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --green: #059669;
+    --green-light: #ecfdf5;
+    --yellow: #d97706;
+    --yellow-light: #fffbeb;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-weight: 700; font-size: 16px; color: var(--accent); }
+  .logo span { color: var(--text); font-weight: 400; }
+
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  .week-selector {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--bg); }
+
+  /* ── Upload Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: 460px;
+    max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal h2 { font-size: 18px; margin-bottom: 6px; }
+  .modal p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--bg);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .drop-zone .icon { font-size: 36px; margin-bottom: 12px; }
+  .drop-zone p { font-size: 14px; color: var(--muted); }
+  .drop-zone strong { color: var(--accent); }
+  #file-input { display: none; }
+
+  .upload-status {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: none;
+  }
+  .upload-status.success { background: var(--green-light); color: var(--green); }
+  .upload-status.error   { background: var(--red-light);   color: var(--red); }
+  .upload-status.loading { background: var(--accent-light); color: var(--accent); }
+
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  /* ── Main Layout ── */
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .page-sub   { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .stat-unit  { font-size: 13px; color: var(--muted); margin-left: 2px; }
+
+  /* ── Grid ── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-header h3 { font-size: 15px; font-weight: 600; }
+  .card-body { padding: 16px 20px; }
+
+  /* ── Timeline ── */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .timeline-item {
+    display: flex;
+    gap: 14px;
+    cursor: pointer;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .timeline-item:last-child { border-bottom: none; }
+  .tl-date {
+    flex-shrink: 0;
+    width: 72px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    padding-top: 2px;
+  }
+  .tl-content { flex: 1; }
+  .tl-summary { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .tl-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+  .tl-arrow {
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: 12px;
+    padding-top: 2px;
+    transition: transform 0.2s;
+  }
+  .tl-detail {
+    display: none;
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .tl-detail.open { display: block; }
+  .tl-arrow.open { transform: rotate(90deg); }
+
+  .detail-section { margin-bottom: 12px; }
+  .detail-section:last-child { margin-bottom: 0; }
+  .detail-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .detail-text { font-size: 13px; color: var(--text); white-space: pre-wrap; }
+
+  /* ── Plan vs Done ── */
+  .pvd-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .pvd-item:last-child { border-bottom: none; }
+  .pvd-date { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+  .pvd-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pvd-col  { }
+  .pvd-col-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pvd-col-label.plan   { color: var(--yellow); }
+  .pvd-col-label.done   { color: var(--green);  }
+  .pvd-col-text { font-size: 13px; color: var(--text); white-space: pre-wrap; line-height: 1.6; }
+
+  /* ── Reflections ── */
+  .reflection-list { display: flex; flex-direction: column; gap: 10px; }
+  .reflection-card {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--accent-light);
+    border-left: 3px solid var(--accent);
+  }
+  .reflection-meta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .reflection-text { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+
+  /* ── Projects ── */
+  .project-list { display: flex; flex-direction: column; gap: 8px; }
+  .project-item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .project-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .project-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .project-desc { font-size: 12px; color: var(--muted); }
+
+  /* ── Empty State ── */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+  .empty .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty p { font-size: 14px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .grid-2    { grid-template-columns: 1fr; }
+    header { padding: 0 16px; }
+    main   { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">霏霏的实习档案 <span>· MUR</span></div>
+  <div class="header-actions">
+    <select class="week-selector" id="week-selector" onchange="loadWeek(this.value)">
+      <option value="">加载中…</option>
+    </select>
+    <button class="btn btn-primary" onclick="openUpload()">📤 上传日记</button>
+  </div>
+</header>
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>上传实习日记</h2>
+    <p>上传 Excel 文件后，数据会自动解析并保存到云端，历史记录不会被覆盖。</p>
+
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="icon">📂</div>
+      <p><strong>点击选择文件</strong>，或将 Excel 拖拽到此处</p>
+      <p style="margin-top:6px;font-size:12px;">支持 .xlsx / .xls</p>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+
+    <div class="upload-status" id="upload-status"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeUpload()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<main>
+  <div class="page-title" id="page-title">本周工作档案</div>
+  <div class="page-sub"  id="page-sub">从右上角上传 Excel 日记，或选择历史周次查看</div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">记录天数</div>
+      <div class="stat-value" id="stat-days">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">参与项目数</div>
+      <div class="stat-value" id="stat-projects">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">收获与思考</div>
+      <div class="stat-value" id="stat-reflections">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">累计周次</div>
+      <div class="stat-value" id="stat-weeks">–</div>
+    </div>
+  </div>
+
+  <!-- Row 1: Timeline + Plan vs Done -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <span>🗓</span><h3>每日日志时间轴</h3>
+      </div>
+      <div class="card-body">
+        <div class="timeline" id="timeline">
+          <div class="empty"><div class="icon">📭</div><p>暂无数据，上传日记后显示</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span>✅</span><h3>计划 vs 完成</h3>
+      </div>
+      <div class="card-body">
+        <div id="pvd-list">
+          <div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Reflections + Projects -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <span>💡</span><h3>收获与思考</h3>
+      </div>
+      <div class="card-body">
+        <div class="reflection-list" id="reflection-list">
+          <div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span>🗂</span><h3>本周项目总览</h3>
+      </div>
+      <div class="card-body">
+        <div class="project-list" id="project-list">
+          <div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Supabase Init ──
+const SUPABASE_URL = 'https://lnaxhswkymoqieayflsx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dvOoG1znljkwO6MZwL-GZw_OqUMpKTm';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── Modal ──
+function openUpload()  { document.getElementById('modal').classList.add('open'); }
+function closeUpload() {
+  document.getElementById('modal').classList.remove('open');
+  setStatus('', '');
+}
+
+// ── Drag & Drop ──
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+function setStatus(type, msg) {
+  const el = document.getElementById('upload-status');
+  el.className = 'upload-status' + (type ? ' ' + type : '');
+  el.style.display = type ? 'block' : 'none';
+  el.textContent = msg;
+}
+
+// ── Parse Excel ──
+function handleFile(file) {
+  if (!file) return;
+  setStatus('loading', '⏳ 正在解析 Excel…');
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const parsed = parseRows(rows);
+      if (!parsed) { setStatus('error', '❌ 未能识别日记格式，请检查 Excel 结构'); return; }
+      setStatus('loading', '⏫ 正在上传到云端…');
+      await saveToSupabase(parsed);
+      setStatus('success', '✅ 上传成功！数据已保存到云端');
+      await loadAllWeeks();
+      loadWeek(parsed.weekly.week_label);
+    } catch(err) {
+      console.error(err);
+      setStatus('error', '❌ 出错了：' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Parse Rows ──
+function parseRows(rows) {
+  // Find week label from 周总结 row
+  let weekLabel = '';
+  let weeklyRow = null;
+  const dailyMap = {};
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const f = v => (v || '').toString().trim();
+
+    // Detect date rows like "4.13 周一"
+    const dateCell = f(row[1]);
+    const sectionCell = f(row[2]);
+    const contentCell = f(row[3]);
+    const thoughtCell = f(row[4]);
+    const wensanCell  = f(row[5]);
+
+    if (dateCell && dateCell.match(/^\d+\.\d+\s*周/)) {
+      if (!dailyMap[dateCell]) dailyMap[dateCell] = { date_label: dateCell, plan:'', summary:'', next_day_plan:'', reflections:[] };
+    }
+
+    // Fill sections
+    if (sectionCell === '本日计划' && contentCell) {
+      const key = Object.keys(dailyMap).pop();
+      if (key) dailyMap[key].plan = contentCell;
+    }
+    if (sectionCell === '本日总结') {
+      const key = Object.keys(dailyMap).pop();
+      if (key) {
+        if (contentCell && !dailyMap[key].summary) dailyMap[key].summary = contentCell;
+        if (thoughtCell) dailyMap[key].reflections.push(thoughtCell);
+      } else if (contentCell) {
+        // multi-row summaries
+        const key2 = Object.keys(dailyMap).pop();
+        if (key2) dailyMap[key2].summary += '\n' + contentCell;
+      }
+    }
+    if (sectionCell === '次日计划' && contentCell) {
+      const key = Object.keys(dailyMap).pop();
+      if (key) dailyMap[key].next_day_plan = contentCell;
+    }
+
+    // Weekly summary — look for 文案 column containing 周总结
+    if (wensanCell && wensanCell.includes('一周总结')) {
+      weeklyRow = wensanCell;
+      const m = wensanCell.match(/(\d+\.\d+[~～]\d+\.\d+)/);
+      if (m) weekLabel = m[1];
+    }
+  }
+
+  if (!weekLabel) weekLabel = Object.keys(dailyMap)[0]?.split(' ')[0] + '周';
+
+  // Parse weekly summary
+  let workItems = [], nextWeekPlan = '', reflections = '';
+  if (weeklyRow) {
+    const wLines = weeklyRow.split('\n');
+    let inWork = false, inRefl = false, inNext = false;
+    for (const line of wLines) {
+      const l = line.trim();
+      if (l.includes('本周工作')) { inWork = true; inRefl = false; inNext = false; continue; }
+      if (l.includes('下周') && l.includes('计划')) { inNext = true; inWork = false; inRefl = false; continue; }
+      if (l.includes('收获与思考')) { inRefl = true; inWork = false; inNext = false; continue; }
+      if (inWork && l && l.match(/^\d+[）\)]/)) workItems.push(l.replace(/^\d+[）\)]/, '').trim());
+      if (inNext && l) nextWeekPlan += (nextWeekPlan ? '\n' : '') + l;
+      if (inRefl && l) reflections  += (reflections  ? '\n' : '') + l;
+    }
+  }
+
+  const weekly = { week_label: weekLabel, work_items: workItems, next_week_plan: nextWeekPlan, reflections };
+  const dailyLogs = Object.values(dailyMap).map(d => ({ ...d, week_label: weekLabel }));
+
+  return { weekly, dailyLogs };
+}
+
+// ── Save to Supabase ──
+async function saveToSupabase({ weekly, dailyLogs }) {
+  // Upsert weekly (delete old same week first)
+  await db.from('weekly_summaries').delete().eq('week_label', weekly.week_label);
+  const { error: e1 } = await db.from('weekly_summaries').insert(weekly);
+  if (e1) throw new Error('保存周总结失败: ' + e1.message);
+
+  // Upsert daily logs
+  await db.from('daily_logs').delete().eq('week_label', weekly.week_label);
+  if (dailyLogs.length > 0) {
+    const { error: e2 } = await db.from('daily_logs').insert(dailyLogs);
+    if (e2) throw new Error('保存日志失败: ' + e2.message);
+  }
+}
+
+// ── Load weeks list ──
+async function loadAllWeeks() {
+  const { data } = await db.from('weekly_summaries').select('week_label').order('created_at', { ascending: false });
+  const sel = document.getElementById('week-selector');
+  if (!data || data.length === 0) {
+    sel.innerHTML = '<option value="">暂无数据</option>';
+    document.getElementById('stat-weeks').textContent = '0';
+    return;
+  }
+  sel.innerHTML = data.map(d => `<option value="${d.week_label}">${d.week_label} 周</option>`).join('');
+  document.getElementById('stat-weeks').textContent = data.length;
+}
+
+// ── Load a week ──
+async function loadWeek(weekLabel) {
+  if (!weekLabel) return;
+
+  const [{ data: weekly }, { data: logs }] = await Promise.all([
+    db.from('weekly_summaries').select('*').eq('week_label', weekLabel).single(),
+    db.from('daily_logs').select('*').eq('week_label', weekLabel).order('created_at')
+  ]);
+
+  document.getElementById('week-selector').value = weekLabel;
+  document.getElementById('page-title').textContent = weekLabel + ' 工作档案';
+  document.getElementById('page-sub').textContent = '共记录 ' + (logs?.length || 0) + ' 天';
+
+  document.getElementById('stat-days').textContent = logs?.length || 0;
+  document.getElementById('stat-reflections').textContent =
+    (logs || []).reduce((acc, d) => acc + (d.reflections?.length || 0), 0);
+
+  renderTimeline(logs || []);
+  renderPvD(logs || []);
+  renderReflections(logs || []);
+  renderProjects(weekly);
+}
+
+// ── Render Timeline ──
+function renderTimeline(logs) {
+  const el = document.getElementById('timeline');
+  if (!logs.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
+
+  el.innerHTML = logs.map((log, i) => `
+    <div class="timeline-item" onclick="toggleDetail(${i})">
+      <div class="tl-date">${log.date_label}</div>
+      <div class="tl-content">
+        <div class="tl-summary">${truncate(log.summary || log.plan || '–', 60)}</div>
+        ${log.reflections?.length ? `<div class="tl-tags">${log.reflections.slice(0,2).map(r => `<span class="tag">${truncate(r, 20)}</span>`).join('')}</div>` : ''}
+        <div class="tl-detail" id="detail-${i}">
+          ${log.plan ? `<div class="detail-section"><div class="detail-label">📋 本日计划</div><div class="detail-text">${log.plan}</div></div>` : ''}
+          ${log.summary ? `<div class="detail-section"><div class="detail-label">✅ 工作总结</div><div class="detail-text">${log.summary}</div></div>` : ''}
+          ${log.next_day_plan ? `<div class="detail-section"><div class="detail-label">🔜 次日计划</div><div class="detail-text">${log.next_day_plan}</div></div>` : ''}
+          ${log.reflections?.length ? `<div class="detail-section"><div class="detail-label">💡 收获与思考</div>${log.reflections.map(r => `<div class="detail-text" style="margin-bottom:6px">• ${r}</div>`).join('')}</div>` : ''}
+        </div>
+      </div>
+      <div class="tl-arrow" id="arrow-${i}">▶</div>
+    </div>
+  `).join('');
+}
+
+function toggleDetail(i) {
+  const d = document.getElementById('detail-' + i);
+  const a = document.getElementById('arrow-' + i);
+  d.classList.toggle('open');
+  a.classList.toggle('open');
+}
+
+// ── Render Plan vs Done ──
+function renderPvD(logs) {
+  const el = document.getElementById('pvd-list');
+  if (!logs.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
+
+  el.innerHTML = logs.map(log => `
+    <div class="pvd-item">
+      <div class="pvd-date">${log.date_label}</div>
+      <div class="pvd-row">
+        <div class="pvd-col">
+          <div class="pvd-col-label plan">📋 计划</div>
+          <div class="pvd-col-text">${log.plan || '–'}</div>
+        </div>
+        <div class="pvd-col">
+          <div class="pvd-col-label done">✅ 完成</div>
+          <div class="pvd-col-text">${log.summary || '–'}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Render Reflections ──
+function renderReflections(logs) {
+  const el = document.getElementById('reflection-list');
+  const all = [];
+  logs.forEach(log => {
+    (log.reflections || []).forEach(r => all.push({ date: log.date_label, text: r }));
+  });
+  if (!all.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
+
+  el.innerHTML = all.map(r => `
+    <div class="reflection-card">
+      <div class="reflection-meta">${r.date}</div>
+      <div class="reflection-text">${r.text}</div>
+    </div>
+  `).join('');
+}
+
+// ── Render Projects ──
+function renderProjects(weekly) {
+  const el = document.getElementById('project-list');
+  const items = weekly?.work_items || [];
+  document.getElementById('stat-projects').textContent = items.length || '–';
+
+  if (!items.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>'; return; }
+
+  el.innerHTML = items.map(item => {
+    // Try to parse 【项目名】描述 格式
+    const m = item.match(/【(.+?)】(.*)/) || item.match(/^(.+?)[：:](.*)/);
+    const name = m ? m[1] : item;
+    const desc = m ? m[2].trim() : '';
+    return `
+      <div class="project-item">
+        <div class="project-dot"></div>
+        <div>
+          <div class="project-name">${name}</div>
+          ${desc ? `<div class="project-desc">${desc}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Utils ──
+function truncate(str, n) {
+  return str.length > n ? str.slice(0, n) + '…' : str;
+}
+
+// ── Init ──
+(async () => {
+  await loadAllWeeks();
+  const sel = document.getElementById('week-selector');
+  if (sel.value) loadWeek(sel.value);
+})();
+</script>
+</body>
+</html>
